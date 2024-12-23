@@ -1,34 +1,52 @@
 import streamlit as st
-import pymysql
 import re
-import bcrypt # type: ignore
+import bcrypt
+from supabase import create_client
+from typing import Optional
+
+# Supabase configuration
+supabase_url = "https://duiomhgeqricsyjmeamr.supabase.co"
+supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1aW9taGdlcXJpY3N5am1lYW1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDczNTMsImV4cCI6MjA1MDUyMzM1M30.VRVw8jQLSQ3IzWhb2NonPHEQ2Gwq-k7WjvHB3WcLe48"
 
 def connect_db():
+    """Create and return Supabase client."""
     try:
-        connection = pymysql.connect(
-            host='localhost',
-            user='root',
-            password='password123',  # Use the password you set above
-            db='cv',
-            port=3306,
-            cursorclass=pymysql.cursors.DictCursor
-        )
-        return connection
+        return create_client(supabase_url, supabase_key)
     except Exception as e:
         st.error(f"Database connection failed: {e}")
         return None
 
-def is_valid_email(email):
+def is_valid_email(email: str) -> bool:
+    """Validate email format."""
     email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(email_regex, email) is not None
+    return bool(re.match(email_regex, email))
 
-def is_valid_password(password):
+def is_valid_password(password: str) -> bool:
+    """Validate password requirements."""
     return (
         len(password) >= 8 and 
         any(c.isupper() for c in password) and 
         any(c.islower() for c in password) and 
         any(c.isdigit() for c in password)
     )
+
+def check_existing_user(supabase, email: str, username: str) -> Optional[str]:
+    """Check if email or username already exists."""
+    try:
+        # Check email
+        email_response = supabase.table('users').select("*").eq('email', email).execute()
+        if email_response.data and len(email_response.data) > 0:
+            return "Email already registered. Please use a different email."
+
+        # Check username
+        username_response = supabase.table('users').select("*").eq('username', username).execute()
+        if username_response.data and len(username_response.data) > 0:
+            return "Username already taken. Please choose a different username."
+
+        return None
+    except Exception as e:
+        st.error(f"Error checking existing user: {e}")
+        return "Database error occurred"
 
 def signup():
     st.subheader("Sign Up")
@@ -66,45 +84,45 @@ def signup():
             return
 
         try:
-            # Ensure the password is encoded to bytes before hashing
+            # Hash password
             hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-            
-            # Convert to string for database storage if needed
-            # Some databases prefer string representation
             hashed_password_str = hashed_password.decode('utf-8')
         except Exception as hash_error:
             st.error(f"Password hashing error: {hash_error}")
             return
 
-        # Database connection and user registration
-        conn = connect_db()
-        if conn:
-            cursor = conn.cursor()
-            try:
-                # Check if email already exists
-                cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
-                if cursor.fetchone():
-                    st.error("Email already registered. Please use a different email.")
-                    return
+        # Get Supabase client
+        supabase = connect_db()
+        if not supabase:
+            return
 
-                # Check if username already exists
-                cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
-                if cursor.fetchone():
-                    st.error("Username already taken. Please choose a different username.")
-                    return
+        # Check for existing user
+        error_message = check_existing_user(supabase, email, username)
+        if error_message:
+            st.error(error_message)
+            return
 
-                # Insert new user into database
-                cursor.execute(
-                    "INSERT INTO users (email, username, full_name, password, user_type) VALUES (%s, %s, %s, %s, %s)", 
-                    (email, username, full_name, hashed_password, user_type)
-                )
-                conn.commit()
-
+        try:
+            # Insert new user into Supabase
+            user_data = {
+                'email': email,
+                'username': username,
+                'full_name': full_name,
+                'password': hashed_password_str,
+                'user_type': user_type
+            }
+            
+            response = supabase.table('users').insert([user_data]).execute()  # Note the [user_data] wrapped in list
+            
+            if response and response.data:
                 st.success("Account created successfully!")
                 st.session_state["page"] = "login"
                 st.rerun()
+            else:
+                st.error("Failed to create account. Please try again.")
 
-            except Exception as e:
-                st.error(f"Registration error: {e}")
-            finally:
-                conn.close()
+        except Exception as e:
+            st.error(f"Registration error: {e}")
+
+if __name__ == "__main__":
+    signup()

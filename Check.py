@@ -1,62 +1,42 @@
 import nltk
 import os
-
-# First, ensure NLTK downloads are complete before any other imports
-def download_nltk_resources():
-    try:
-        # Create data directory in current working directory
-        current_dir = os.getcwd()
-        nltk_data_dir = os.path.join(current_dir, 'nltk_data')
-        os.makedirs(nltk_data_dir, exist_ok=True)
-        
-        # Explicitly set NLTK data path
-        nltk.data.path = [nltk_data_dir] + nltk.data.path
-        
-        # Download required resources
-        resources = [
-            'punkt',
-            'averaged_perceptron_tagger',
-            'maxent_ne_chunker',
-            'words',
-            'stopwords'
-        ]
-        
-        for resource in resources:
-            nltk.download(resource, download_dir=nltk_data_dir, quiet=True)
-            
-    except Exception as e:
-        print(f"Error downloading NLTK resources: {e}")
-        raise
-
-# Call this function before any other imports
-download_nltk_resources()
+from supabase import create_client
 import streamlit as st
 import pandas as pd
-import base64,random
-import time,datetime
+import base64, random
+import time, datetime
 import sys
-import os
-from Home_test import connect_db
-#libraries to parse the resume pdf files
 from pyresparser import ResumeParser
 from pdfminer3.layout import LAParams, LTTextBox
 from pdfminer3.pdfpage import PDFPage
 from pdfminer3.pdfinterp import PDFResourceManager
 from pdfminer3.pdfinterp import PDFPageInterpreter
 from pdfminer3.converter import TextConverter
-import io,random
+import io, random
 from streamlit_tags import st_tags
 from PIL import Image
-import pymysql
-from Courses import ds_course,web_course,android_course,ios_course,uiux_course,resume_videos,interview_videos
+from Courses import ds_course, web_course, android_course, ios_course, uiux_course, resume_videos, interview_videos
 os.environ['PAFY_BACKEND'] = "internal"
-import pafy  # This should now work with the internal backend
-# Rest of your imports...
-import plotly.express as px #to create visualisations at the admin session
+import pafy
+import plotly.express as px
 import re
 import nltk
 nltk.download('stopwords')
 
+# Supabase configuration
+supabase_url = "https://duiomhgeqricsyjmeamr.supabase.co"
+supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1aW9taGdlcXJpY3N5am1lYW1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDczNTMsImV4cCI6MjA1MDUyMzM1M30.VRVw8jQLSQ3IzWhb2NonPHEQ2Gwq-k7WjvHB3WcLe48"
+supabase = create_client(supabase_url, supabase_key)
+
+
+def connect_db():
+    """Create and return Supabase client."""
+    try:
+        return create_client(supabase_url, supabase_key)
+    except Exception as e:
+        st.error(f"Error connecting to Supabase: {e}")
+        return None
+    
 def check():
     """Check if the user is logged in and fetch user details."""
     if not st.session_state.get("logged_in"):
@@ -68,22 +48,14 @@ def check():
         return None
     
     user_email = st.session_state.get("email")
-    conn = connect_db()
-    if conn:
-        try:
-            cursor = conn.cursor(pymysql.cursors.DictCursor)
-            cursor.execute("SELECT * FROM users WHERE email = %s", (user_email,))
-            user = cursor.fetchone()
-            if user:
-                return user  # Return the user object
-            else:
-                st.error("User details not found.")
-        except Exception as e:
-            st.error(f"Error fetching user details: {e}")
-        finally:
-            conn.close()
-    else:
-        st.error("Failed to connect to database.")
+    try:
+        response = supabase.table('users').select("*").eq('email', user_email).execute()
+        if response.data:
+            return response.data[0]  # Return the first matching user
+        else:
+            st.error("User details not found.")
+    except Exception as e:
+        st.error(f"Error fetching user details: {e}")
     
     return None
 
@@ -104,40 +76,31 @@ def extract_keywords_from_resume(resume_text):
     return set(keywords)
 
 def recommend_jobs_from_database(keywords, reco_field):
-    """Query the database to fetch jobs matching reco_field and keywords."""
-    conn = connect_db()
-    recommended_jobs = []
-    if conn:
-        try:
-            cursor = conn.cursor(pymysql.cursors.DictCursor)
-
-            # Prepare the keyword pattern for REGEXP query
-            keyword_pattern = '|'.join([re.escape(kw.lower()) for kw in keywords])
-
-            # SQL query to fetch jobs where job_subject matches reco_field
-            # AND required_skills matches any keyword
-            sql = """
-                SELECT 
-                    job_title, 
-                    job_subject, 
-                    CONCAT(city, ', ', state) AS location, 
-                    required_skills 
-                FROM job_listings 
-                WHERE 
-                    LOWER(job_subject) = LOWER(%s) 
-                    AND LOWER(required_skills) REGEXP %s
-            """
-            # Execute the query with parameters
-            cursor.execute(sql, (reco_field.lower(), keyword_pattern))
-            recommended_jobs = cursor.fetchall()
-            
-        except Exception as e:
-            st.error(f"Error querying database: {e}")
-        finally:
-            cursor.close()
-            conn.close()
-
-    return recommended_jobs
+    """Query Supabase to fetch jobs matching reco_field and keywords."""
+    try:
+        # Convert keywords to lowercase for case-insensitive matching
+        keyword_list = [kw.lower() for kw in keywords]
+        
+        # Query jobs table
+        response = supabase.table('job_listings').select("*").execute()
+        
+        # Filter results in Python (since Supabase doesn't support REGEXP)
+        recommended_jobs = []
+        for job in response.data:
+            if job['job_subject'].lower() == reco_field.lower():
+                # Check if any keyword matches the required_skills
+                if any(kw in job['required_skills'].lower() for kw in keyword_list):
+                    recommended_jobs.append({
+                        'job_title': job['job_title'],
+                        'job_subject': job['job_subject'],
+                        'location': f"{job['city']}, {job['state']}",
+                        'required_skills': job['required_skills']
+                    })
+                    
+        return recommended_jobs
+    except Exception as e:
+        st.error(f"Error querying database: {e}")
+        return []
 
 def fetch_yt_video(link):
     video = pafy.new(link)
@@ -193,38 +156,28 @@ def course_recommender(course_list):
             break
     return rec_course
 
-#CONNECT TO DATABASE
-
-connection = pymysql.connect(
-            host='localhost',
-            user='root',
-            password='password123',  # Use the password you set above
-            db='cv',
-            port=3306,
-            cursorclass=pymysql.cursors.DictCursor
-        )
-cursor = connection.cursor()
-
 def insert_data(user_id, name, email, res_score, timestamp, no_of_pages, reco_field, cand_level, skills, recommended_skills, courses):
-    """Insert user data into the user_data table."""
-    DB_table_name = 'user_data'
-    conn = connect_db()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            insert_sql = f"""
-            INSERT INTO {DB_table_name} 
-            (user_id, Name, Email_ID, resume_score, Timestamp, Page_no, Predicted_Field, User_level, Actual_skills, Recommended_skills, Recommended_courses)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """
-            rec_values = (user_id, name, email, str(res_score), timestamp, str(no_of_pages), reco_field, cand_level, skills, recommended_skills, courses)
-            cursor.execute(insert_sql, rec_values)
-            conn.commit()
-        except Exception as e:
-            st.error(f"Error inserting data: {e}")
-        finally:
-            cursor.close()
-            conn.close()
+    """Insert user data into the user_data table in Supabase."""
+    try:
+        data = {
+            'user_id': user_id,
+            'Name': name,
+            'Email_ID': email,
+            'resume_score': str(res_score),
+            'Timestamp': timestamp,
+            'Page_no': str(no_of_pages),
+            'Predicted_Field': reco_field,
+            'User_level': cand_level,
+            'Actual_skills': skills,
+            'Recommended_skills': recommended_skills,
+            'Recommended_courses': courses
+        }
+        
+        response = supabase.table('user_data').insert(data).execute()
+        if not response.data:
+            st.error("Failed to insert data")
+    except Exception as e:
+        st.error(f"Error inserting data: {e}")
 
 def run():
     user_id = check()  # Call check to verify login and get user_id
@@ -455,10 +408,6 @@ def run():
                 int_vid_title = fetch_yt_video(interview_vid)
                 st.subheader("✅ **" + int_vid_title + "**")
                 st.video(interview_vid)
-
-                connection.commit()
-            else:
-                st.error('Something went wrong..')
                 
 if __name__ == "__main__":
     run()
