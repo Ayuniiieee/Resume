@@ -7,14 +7,14 @@ def connect_db():
     try:
         # Create Supabase client
         supabase = create_client(
-            st.secrets["https://duiomhgeqricsyjmeamr.supabase.co"],
-            st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1aW9taGdlcXJpY3N5am1lYW1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDczNTMsImV4cCI6MjA1MDUyMzM1M30.VRVw8jQLSQ3IzWhb2NonPHEQ2Gwq-k7WjvHB3WcLe48"]
+            st.secrets["supabase"]["https://duiomhgeqricsyjmeamr.supabase.co"],
+            st.secrets["supabase"]["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1aW9taGdlcXJpY3N5am1lYW1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDczNTMsImV4cCI6MjA1MDUyMzM1M30.VRVw8jQLSQ3IzWhb2NonPHEQ2Gwq-k7WjvHB3WcLe48"]
         )
         return supabase
     except Exception as e:
         st.error(f"Database connection failed: {e}")
         return None
-
+    
 # Function to convert an image to base64 for use in CSS
 def get_base64_image(image_path):
     with open(image_path, "rb") as image_file:
