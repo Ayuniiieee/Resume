@@ -2,8 +2,7 @@ import streamlit as st
 import sys
 import os
 import Check
-import pymysql
-from Home_test import connect_db
+from supabase import create_client
 
 # Add the project root directory to the Python path
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -13,16 +12,28 @@ sys.path.insert(0, project_root)
 try:
     from Home_test import home
     from pages.login_test import login
-    from pages.sign_test import signup  # type: ignore 
-    from upload import upload  # type: ignore
-    from feedback import feedback  # type: ignore
-    from application_overview import application_overview  # type: ignore
+    from pages.sign_test import signup
+    from upload import upload
+    from feedback import feedback
+    from application_overview import application_overview
     from applied_jobs import main as applied_jobs
-    from about_us import about_us  # type: ignore
+    from about_us import about_us
     from apply import apply 
 except ImportError as e:
     st.error(f"Import error: {e}")
     st.stop()
+
+def connect_db():
+    try:
+        # Create Supabase client
+        supabase = create_client(
+            st.secrets["https://duiomhgeqricsyjmeamr.supabase.co"],
+            st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1aW9taGdlcXJpY3N5am1lYW1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDczNTMsImV4cCI6MjA1MDUyMzM1M30.VRVw8jQLSQ3IzWhb2NonPHEQ2Gwq-k7WjvHB3WcLe48"]
+        )
+        return supabase
+    except Exception as e:
+        st.error(f"Database connection failed: {e}")
+        return None
 
 def create_header():
     if st.session_state.get("logged_in", False):
@@ -63,27 +74,24 @@ def create_header():
 
 def perform_job_search(search_query, search_type):
     try:
-        connection = connect_db()
-        with connection.cursor(pymysql.cursors.DictCursor) as cursor:
+        supabase = connect_db()
+        if supabase:
             if search_type == "location":
-                sql = "SELECT * FROM job_listings WHERE city LIKE %s OR state LIKE %s"
-                search_param = f"%{search_query}%"
-                cursor.execute(sql, (search_param, search_param))
+                response = supabase.table('job_listings').select('*').or_(
+                    f"city.ilike.%{search_query}%,state.ilike.%{search_query}%"
+                ).execute()
             elif search_type == "job_title":
-                sql = "SELECT * FROM job_listings WHERE job_title LIKE %s"
-                search_param = f"%{search_query}%"
-                cursor.execute(sql, (search_param,))
+                response = supabase.table('job_listings').select('*').ilike(
+                    'job_title', f'%{search_query}%'
+                ).execute()
             elif search_type == "job_subject":
-                sql = "SELECT * FROM job_listings WHERE job_subject LIKE %s"
-                search_param = f"%{search_query}%"
-                cursor.execute(sql, (search_param,))
-            results = cursor.fetchall()
-        return results
-    except pymysql.Error as e:
+                response = supabase.table('job_listings').select('*').ilike(
+                    'job_subject', f'%{search_query}%'
+                ).execute()
+            return response.data
+    except Exception as e:
         st.error(f"Database error: {e}")
         return []
-    finally:
-        connection.close()
 
 def display_search_results(results):
     if not results:

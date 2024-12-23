@@ -1,22 +1,20 @@
 import streamlit as st
-import pymysql
-import bcrypt  # type: ignore
+from supabase import create_client
+import bcrypt
 import base64
 
 def connect_db():
     try:
-        connection = pymysql.connect(
-            host='localhost',
-            user='root',
-            password='password123',  # Use the password you set above
-            db='cv',
-            port=3306,
-            cursorclass=pymysql.cursors.DictCursor
+        # Create Supabase client
+        supabase = create_client(
+            st.secrets["https://duiomhgeqricsyjmeamr.supabase.co"],
+            st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1aW9taGdlcXJpY3N5am1lYW1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDczNTMsImV4cCI6MjA1MDUyMzM1M30.VRVw8jQLSQ3IzWhb2NonPHEQ2Gwq-k7WjvHB3WcLe48"]
         )
-        return connection
+        return supabase
     except Exception as e:
         st.error(f"Database connection failed: {e}")
         return None
+
 # Function to convert an image to base64 for use in CSS
 def get_base64_image(image_path):
     with open(image_path, "rb") as image_file:
@@ -57,37 +55,36 @@ def login():
     # Add custom CSS for styling
     st.markdown("""
     <style>
-
         .welcome-text {
-            font-size: 24px; /* Adjust font size */
+            font-size: 24px;
             font-weight: bold;
             text-align: center;
-            color: white; /* Color for 'Welcome to' */
+            color: white;
             text-shadow: 
                 2px 2px 0 black, 
                 -2px -2px 0 black,  
                 2px -2px 0 black,
-                -2px 2px 0 black; /* Thick border effect */
-            display: inline; /* Display inline for one line */
-            margin-right: 10px; /* Space between words */
+                -2px 2px 0 black;
+            display: inline;
+            margin-right: 10px;
         }
 
         .edu-title {
-            font-size: 36px; /* Adjust font size */
+            font-size: 36px;
             font-weight: bold;
             text-align: center;
-            color: #00BFFF; /* Color for 'EduResume' */
+            color: #00BFFF;
             text-shadow: 
                 2px 2px 0 black, 
                 -2px -2px 0 black,  
                 2px -2px 0 black,
-                -2px 2px 0 black; /* Thick border effect */
-            display: inline; /* Display inline for one line */
+                -2px 2px 0 black;
+            display: inline;
         }
 
         .title-container {
-            text-align: center; /* Center the entire title */
-            margin-bottom: 20px; /* Space below the title */
+            text-align: center;
+            margin-bottom: 20px;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -101,15 +98,14 @@ def login():
 
     # Login button
     if st.button("Log In", key="login_submit"):
-        conn = connect_db()
-        if conn:
-            cursor = conn.cursor(pymysql.cursors.DictCursor)
+        supabase = connect_db()
+        if supabase:
             try:
                 # Query to fetch user by email
-                cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
-                user = cursor.fetchone()
+                response = supabase.table('users').select('*').eq('email', email).execute()
                 
-                if user:
+                if response.data and len(response.data) > 0:
+                    user = response.data[0]
                     stored_password = user['password']
                     if isinstance(stored_password, str):
                         stored_password = stored_password.encode('utf-8')
@@ -120,7 +116,7 @@ def login():
                         st.session_state["logged_in"] = True
                         st.session_state["email"] = email
                         st.session_state["user_type"] = user['user_type']
-                        st.session_state["user_id"] = user['ID']
+                        st.session_state["user_id"] = user['id']  # Note: Supabase usually uses lowercase 'id'
                         st.session_state["page"] = "home"
                         st.rerun()
                     else:
@@ -129,8 +125,6 @@ def login():
                     st.error("No user found with this email.")
             except Exception as e:
                 st.error(f"Login error: {e}")
-            finally:
-                conn.close()
 
     # Sign Up section
     st.markdown("Don't have an account?")
