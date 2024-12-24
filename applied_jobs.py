@@ -11,13 +11,9 @@ def connect_db():
         st.error(f"Database connection failed: {e}")
         return None
 
-def fetch_all_jobs():
-    supabase = connect_db()
-    if not supabase:
-        return []
-
+def fetch_all_jobs(supabase, user_id):
     try:
-        # Fetch all job applications with job details
+        # Fetch all job applications for the logged-in user
         response = (supabase
             .from_('job_applications')
             .select('''
@@ -31,6 +27,7 @@ def fetch_all_jobs():
                 status,
                 user_id
             ''')
+            .eq('user_id', user_id)  # Only fetch jobs for the current user
             .execute()
         )
 
@@ -59,7 +56,6 @@ def fetch_all_jobs():
         return []
 
 def main():
-    # Page styling
     st.markdown("""
         <style>
         .title {
@@ -79,11 +75,22 @@ def main():
     
     st.markdown('<p class="title">Applied Jobs Overview</p>', unsafe_allow_html=True)
 
+    # Connect to Supabase
+    supabase = connect_db()
+    if not supabase:
+        st.error("Unable to connect to the database.")
+        return
+
+    # Check if the user is logged in
+    user_id = st.session_state.get("user_id")  # Assuming user ID is stored in session state
+    if not user_id:
+        st.error("Unable to retrieve your user ID. Please log in again.")
+        return
+
     # Fetch all jobs
-    jobs = fetch_all_jobs()
+    jobs = fetch_all_jobs(supabase, user_id)
 
     if jobs:
-        # Prepare data for display
         job_data = []
         for index, job in enumerate(jobs, start=1):
             job_data.append({
@@ -95,7 +102,6 @@ def main():
                 "Status": job['status']
             })
 
-        # Convert to DataFrame
         df = pd.DataFrame(job_data)
         
         # Add filtering options
