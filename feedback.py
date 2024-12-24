@@ -1,7 +1,15 @@
 import streamlit as st
-import pymysql
-from Home_test import connect_db
+from supabase import create_client
 from datetime import datetime
+from config import SUPABASE_URL, SUPABASE_KEY
+
+def connect_db():
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        return supabase
+    except Exception as e:
+        st.error(f"Database connection failed: {e}")
+        return None
 
 def star_rating_widget(label, max_stars=5, default_rating=3):
     """
@@ -25,42 +33,47 @@ def render_stars(rating):
     """
     full_star = "★"
     empty_star = "☆"
-    return full_star * rating + empty_star * (5 - rating)
+    return full_star * int(rating) + empty_star * (5 - int(rating))
 
-def submit_feedback(conn, full_name, user_email, rating, comment):
+def submit_feedback(supabase, full_name, user_email, rating, comment):
     """
     Submit feedback to the database
     """
     try:
-        cursor = conn.cursor()
-        query = """
-        INSERT INTO feedback 
-        (full_name, user_email, rating, comment, created_at) 
-        VALUES (%s, %s, %s, %s, %s)
-        """
-        cursor.execute(query, (full_name, user_email, rating, comment, datetime.now()))
-        conn.commit()
-        return True
+        data = {
+            'full_name': full_name,
+            'user_email': user_email,
+            'rating': rating,
+            'comment': comment,
+            'created_at': datetime.now().isoformat()
+        }
+        response = supabase.table('feedback').insert(data).execute()
+        return True if response.data else False
     except Exception as e:
         st.error(f"Error submitting feedback: {e}")
         return False
 
-def fetch_feedbacks(conn):
+def fetch_feedbacks(supabase):
     """
     Fetch all feedbacks from the database
     """
     try:
-        cursor = conn.cursor(pymysql.cursors.DictCursor)
-        query = """
-        SELECT full_name, user_email, rating, comment, created_at 
-        FROM feedback 
-        ORDER BY created_at DESC
-        """
-        cursor.execute(query)
-        return cursor.fetchall()
+        response = supabase.table('feedback').select('*').order('created_at', desc=True).execute()
+        return response.data
     except Exception as e:
         st.error(f"Error fetching feedbacks: {e}")
         return []
+
+def get_user_details(supabase, email):
+    """
+    Fetch user details from Supabase
+    """
+    try:
+        response = supabase.table('users').select('*').eq('email', email).execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        st.error(f"Error fetching user details: {e}")
+        return None
 
 def feedback():
     """
@@ -68,9 +81,9 @@ def feedback():
     """
     st.title("Community Feedbacks")
 
-    # Connect to the database
-    conn = connect_db()
-    if not conn:
+    # Connect to Supabase
+    supabase = connect_db()
+    if not supabase:
         st.error("Unable to connect to the database.")
         return
 
@@ -81,21 +94,10 @@ def feedback():
             
             # Get user details from session state
             user_email = st.session_state.get("email", "")
-            full_name = st.session_state.get("full_name", "")
-
-            # Fetch full name from database if not in session state
-            if not full_name and user_email:
-                try:
-                    cursor = conn.cursor(pymysql.cursors.DictCursor)
-                    cursor.execute("SELECT full_name FROM users WHERE email = %s", (user_email,))
-                    user = cursor.fetchone()
-                    if user:
-                        full_name = user["full_name"]
-                        st.session_state["full_name"] = full_name
-                    else:
-                        st.error("User details not found.")
-                except Exception as e:
-                    st.error(f"Error fetching user details: {e}")
+            
+            # Fetch user details from Supabase
+            user_details = get_user_details(supabase, user_email) if user_email else None
+            full_name = user_details.get('full_name', '') if user_details else ''
 
             # Display user information
             st.write(f"**Name:** {full_name}")
@@ -111,9 +113,9 @@ def feedback():
             # Submit button
             if st.button("Submit Feedback"):
                 if rating > 0:
-                    # Submit feedback
-                    if submit_feedback(conn, full_name, user_email, rating, comment):
+                    if submit_feedback(supabase, full_name, user_email, rating, comment):
                         st.success("Thank you for your feedback!")
+                        st.rerun()  # Refresh to show the new feedback
                 else:
                     st.warning("Please select a rating.")
 
@@ -125,11 +127,10 @@ def feedback():
         st.subheader("Community Feedbacks")
 
         # Fetch and display feedbacks
-        feedbacks = fetch_feedbacks(conn)
+        feedbacks = fetch_feedbacks(supabase)
         
         if feedbacks:
             for feedback in feedbacks:
-                # Feedback card layout
                 with st.container():
                     col1, col2 = st.columns([3, 1])
                     
@@ -143,20 +144,15 @@ def feedback():
                     st.write(f"*{feedback['comment']}*")
                     
                     # Date
-                    st.caption(f"Posted on: {feedback['created_at'].strftime('%Y-%m-%d %H:%M')}")
+                    created_at = datetime.fromisoformat(feedback['created_at'].replace('Z', '+00:00'))
+                    st.caption(f"Posted on: {created_at.strftime('%Y-%m-%d %H:%M')}")
                 
-                # Separator between feedback entries
                 st.markdown("---")
         else:
             st.info("No feedbacks yet.")
 
     except Exception as e:
         st.error(f"An error occurred: {e}")
-    
-    finally:
-        # Always close the database connection
-        conn.close()
 
-# This allows the page to be imported and used in the main app
 if __name__ == "__main__":
     feedback()

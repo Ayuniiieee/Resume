@@ -1,24 +1,23 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client
+from config import SUPABASE_URL, SUPABASE_KEY
 
 def connect_db():
     try:
-        supabase_url = st.secrets["SUPABASE_URL"]
-        supabase_key = st.secrets["SUPABASE_KEY"]
-        supabase = create_client(supabase_url, supabase_key)
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
         return supabase
     except Exception as e:
         st.error(f"Database connection failed: {e}")
         return None
 
-def fetch_applied_jobs(user_id):
+def fetch_all_jobs():
     supabase = connect_db()
     if not supabase:
         return []
 
     try:
-        # Fetch job applications for the specific user with job details using Supabase's query builder
+        # Fetch all job applications with job details
         response = (supabase
             .from_('job_applications')
             .select('''
@@ -29,16 +28,16 @@ def fetch_applied_jobs(user_id):
                     state,
                     job_frequency
                 ),
-                status
+                status,
+                user_id
             ''')
-            .eq('user_id', user_id)
             .execute()
         )
 
         if not response.data:
             return []
 
-        # Transform the data to match the expected format
+        # Transform the data
         jobs = []
         for item in response.data:
             job_listing = item.get('job_listings', {})
@@ -60,21 +59,28 @@ def fetch_applied_jobs(user_id):
         return []
 
 def main():
-    st.title("Applied Jobs")
+    # Page styling
+    st.markdown("""
+        <style>
+        .title {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #1E88E5;
+        }
+        .stDataFrame {
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        </style>
+        """, unsafe_allow_html=True)
+    
+    st.markdown('<p class="title">Applied Jobs Overview</p>', unsafe_allow_html=True)
 
-    # Check if user is logged in
-    if not st.session_state.get("logged_in"):
-        st.warning("Please log in to view your applied jobs.")
-        return
-
-    # Get the user ID from the session state
-    user_id = st.session_state.get("user_id")
-    if not user_id:
-        st.error("Unable to retrieve your user ID. Please log in again.")
-        return
-
-    # Fetch applied jobs for the logged-in user
-    jobs = fetch_applied_jobs(user_id)
+    # Fetch all jobs
+    jobs = fetch_all_jobs()
 
     if jobs:
         # Prepare data for display
@@ -84,17 +90,71 @@ def main():
                 "No": index,
                 "Job Title": job['job_title'],
                 "Job Subject": job['job_subject'],
-                "City": job['city'],
-                "State": job['state'],
+                "Location": f"{job['city']}, {job['state']}",
                 "Job Frequency": job['job_frequency'],
                 "Status": job['status']
             })
 
-        # Convert to DataFrame and display without index
+        # Convert to DataFrame
         df = pd.DataFrame(job_data)
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        
+        # Add filtering options
+        col1, col2 = st.columns(2)
+        with col1:
+            subject_filter = st.multiselect(
+                "Filter by Subject",
+                options=sorted(df["Job Subject"].unique())
+            )
+        
+        with col2:
+            status_filter = st.multiselect(
+                "Filter by Status",
+                options=sorted(df["Status"].unique())
+            )
+
+        # Apply filters
+        filtered_df = df
+        if subject_filter:
+            filtered_df = filtered_df[filtered_df["Job Subject"].isin(subject_filter)]
+        if status_filter:
+            filtered_df = filtered_df[filtered_df["Status"].isin(status_filter)]
+
+        # Display the filtered dataframe
+        if not filtered_df.empty:
+            st.dataframe(
+                filtered_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "No": st.column_config.NumberColumn(width="small"),
+                    "Status": st.column_config.SelectboxColumn(
+                        width="medium",
+                        options=["Pending", "Accepted", "Rejected"],
+                        required=True
+                    )
+                }
+            )
+        else:
+            st.warning("No jobs match the selected filters.")
+            
+        # Add some statistics
+        st.markdown("### Quick Statistics")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Applications", len(df))
+        with col2:
+            st.metric("Pending Applications", len(df[df["Status"] == "Pending"]))
+        with col3:
+            st.metric("Accepted Applications", len(df[df["Status"] == "Accepted"]))
+            
     else:
-        st.warning("No applied jobs found.")
+        st.info("No job applications found in the system.")
+        st.markdown("""
+            ### Getting Started
+            - Browse available jobs
+            - Submit your applications
+            - Track your application status here
+        """)
 
 if __name__ == "__main__":
     main()
