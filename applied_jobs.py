@@ -1,53 +1,63 @@
 import streamlit as st
-import pymysql
-import pandas as pd  # Import pandas
+import pandas as pd
+from supabase import create_client
 
-def get_db_connection():
+def connect_db():
     try:
-        connection = pymysql.connect(
-            host='localhost',
-            user='root',
-            password='password123',  # Use the password you set above
-            db='cv',
-            port=3306,
-            cursorclass=pymysql.cursors.DictCursor
-        )
-        return connection
+        supabase_url = st.secrets["SUPABASE_URL"]
+        supabase_key = st.secrets["SUPABASE_KEY"]
+        supabase = create_client(supabase_url, supabase_key)
+        return supabase
     except Exception as e:
         st.error(f"Database connection failed: {e}")
         return None
 
 def fetch_applied_jobs(user_id):
-    connection = get_db_connection()
-    if not connection:
+    supabase = connect_db()
+    if not supabase:
         return []
 
     try:
-        with connection.cursor() as cursor:
-            # Fetch job applications for the specific user with job details
-            query = """
-                SELECT 
-                    jl.job_title,
-                    jl.job_subject,
-                    jl.city,
-                    jl.state,
-                    jl.job_frequency,
-                    IFNULL(ja.status, 'Pending') AS status
-                FROM 
-                    job_applications ja
-                JOIN 
-                    job_listings jl ON ja.job_id = jl.id
-                WHERE 
-                    ja.user_id = %s
-            """
-            cursor.execute(query, (user_id,))
-            jobs = cursor.fetchall()
-            return jobs
-    except pymysql.Error as e:
+        # Fetch job applications for the specific user with job details using Supabase's query builder
+        response = (supabase
+            .from_('job_applications')
+            .select('''
+                job_listings(
+                    job_title,
+                    job_subject,
+                    city,
+                    state,
+                    job_frequency
+                ),
+                status
+            ''')
+            .eq('user_id', user_id)
+            .execute()
+        )
+
+        if not response.data:
+            return []
+
+        # Transform the data to match the expected format
+        jobs = []
+        for item in response.data:
+            job_listing = item.get('job_listings', {})
+            status = item.get('status', 'Pending')
+            
+            jobs.append({
+                'job_title': job_listing.get('job_title'),
+                'job_subject': job_listing.get('job_subject'),
+                'city': job_listing.get('city'),
+                'state': job_listing.get('state'),
+                'job_frequency': job_listing.get('job_frequency'),
+                'status': status
+            })
+
+        return jobs
+
+    except Exception as e:
         st.error(f"Error fetching jobs: {e}")
         return []
-    finally:
-        connection.close()
 
 def main():
     st.title("Applied Jobs")
@@ -70,16 +80,14 @@ def main():
         # Prepare data for display
         job_data = []
         for index, job in enumerate(jobs, start=1):
-            job_title, job_subject, city, state, job_frequency, status = job
-            
             job_data.append({
                 "No": index,
-                "Job Title": job_title,
-                "Job Subject": job_subject,
-                "City": city,
-                "State": state,
-                "Job Frequency": job_frequency,
-                "Status": status
+                "Job Title": job['job_title'],
+                "Job Subject": job['job_subject'],
+                "City": job['city'],
+                "State": job['state'],
+                "Job Frequency": job['job_frequency'],
+                "Status": job['status']
             })
 
         # Convert to DataFrame and display without index

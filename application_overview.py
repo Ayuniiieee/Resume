@@ -1,85 +1,96 @@
 import streamlit as st
-import pymysql
 import pandas as pd
 import os
 from datetime import datetime
+from supabase import create_client
 
-def get_db_connection():
+def connect_db():
     try:
-        connection = pymysql.connect(
-            host='localhost',
-            user='root',
-            password='password123',  # Use the password you set above
-            db='cv',
-            port=3306,
-            cursorclass=pymysql.cursors.DictCursor
-        )
-        return connection
+        supabase_url = st.secrets["SUPABASE_URL"]
+        supabase_key = st.secrets["SUPABASE_KEY"]
+        supabase = create_client(supabase_url, supabase_key)
+        return supabase
     except Exception as e:
         st.error(f"Database connection failed: {e}")
         return None
 
 def fetch_applications(user_email):
     """Fetch all applications for jobs posted by the parent"""
-    connection = get_db_connection()
-    if not connection:
+    supabase = connect_db()
+    if not supabase:
         return []
     
     try:
-        with connection.cursor() as cursor:
-            query = """
-                SELECT 
-                    ja.id AS application_id,
-                    jl.job_title,
-                    jl.job_subject,
-                    u.full_name,
-                    ja.resume_path,
-                    IFNULL(ja.status, 'Pending') AS status
-                FROM 
-                    job_applications ja
-                JOIN 
-                    job_listings jl ON ja.job_id = jl.id
-                JOIN 
-                    users u ON ja.user_id = u.id
-                WHERE 
-                    jl.parent_email = %s  -- filter by parent's email
-            """
-            cursor.execute(query, (user_email,))  # Use the provided email
-            return cursor.fetchall()
-    except pymysql.Error as e:
+        # Using Supabase's query builder to join tables and fetch applications
+        response = (supabase
+            .from_('job_applications')
+            .select('''
+                id,
+                job_listings!inner(
+                    job_title,
+                    job_subject,
+                    parent_email
+                ),
+                users!inner(
+                    full_name
+                ),
+                resume_path,
+                status
+            ''')
+            .eq('job_listings.parent_email', user_email)
+            .execute()
+        )
+
+        if not response.data:
+            return []
+
+        # Transform the data to match the expected format
+        applications = []
+        for item in response.data:
+            applications.append({
+                'application_id': item['id'],
+                'job_title': item['job_listings']['job_title'],
+                'job_subject': item['job_listings']['job_subject'],
+                'full_name': item['users']['full_name'],
+                'resume_path': item['resume_path'],
+                'status': item.get('status', 'Pending')
+            })
+
+        return applications
+
+    except Exception as e:
         st.error(f"Error fetching applications: {e}")
         return []
-    finally:
-        connection.close()
 
 def update_application_status(application_id, status):
     """Update the status of an application"""
-    connection = get_db_connection()
-    if not connection:
+    supabase = connect_db()
+    if not supabase:
         return False
     
     try:
-        with connection.cursor() as cursor:
-            query = """
-                UPDATE job_applications 
-                SET status = %s, 
-                    updated_at = %s 
-                WHERE id = %s
-            """
-            cursor.execute(query, (status, datetime.now(), application_id))
-            connection.commit()
-            return True
-    except pymysql.Error as e:
+        response = (supabase
+            .from_('job_applications')
+            .update({
+                'status': status,
+                'updated_at': datetime.now().isoformat()
+            })
+            .eq('id', application_id)
+            .execute()
+        )
+        return True if response.data else False
+    except Exception as e:
         st.error(f"Error updating application status: {e}")
         return False
-    finally:
-        connection.close()
 
 def download_resume(resume_path):
     """Handle resume download"""
     try:
-        with open(resume_path, 'rb') as file:
-            return file.read()
+        # For Supabase storage
+        supabase = connect_db()
+        if supabase:
+            response = supabase.storage.from_('resumes').download(resume_path)
+            return response
     except Exception as e:
         st.error(f"Error downloading resume: {e}")
         return None
@@ -102,44 +113,42 @@ def application_overview():
 
     if applications:
         # Prepare data for display
-        for index, app in enumerate(applications):
-            app_id, job_title, job_subject, full_name, resume_path, status = app
-            
+        for app in applications:
             # Create a container for each application
             with st.container():
                 col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 3])
                 
                 with col1:
-                    st.write(f"**Name:** {full_name}")
+                    st.write(f"**Name:** {app['full_name']}")
                 with col2:
-                    st.write(f"**Job Title:** {job_title}")
+                    st.write(f"**Job Title:** {app['job_title']}")
                 with col3:
-                    st.write(f"**Subject:** {job_subject}")
+                    st.write(f"**Subject:** {app['job_subject']}")
                 with col4:
-                    if resume_path and os.path.exists(resume_path):
-                        resume_content = download_resume(resume_path)
+                    if app['resume_path']:
+                        resume_content = download_resume(app['resume_path'])
                         if resume_content:
                             st.download_button(
                                 label="Download Resume",
                                 data=resume_content,
-                                file_name=f"resume_{full_name}.pdf",
+                                file_name=f"resume_{app['full_name']}.pdf",
                                 mime="application/pdf",
-                                key=f"download_{app_id}"  # Unique key for each download button
+                                key=f"download_{app['application_id']}"
                             )
                 with col5:
-                    st.write(f"**Status:** {status}")
-                    if status == 'Pending':
+                    st.write(f"**Status:** {app['status']}")
+                    if app['status'] == 'Pending':
                         col5_1, col5_2 = st.columns(2)
                         with col5_1:
-                            if st.button(f"Accept {app_id}", key=f"accept_{app_id}"):
-                                if update_application_status(app_id, "Accepted"):
+                            if st.button(f"Accept {app['application_id']}", key=f"accept_{app['application_id']}"):
+                                if update_application_status(app['application_id'], "Accepted"):
                                     st.success("Application accepted!")
-                                    st.rerun()  # Updated to use st.rerun()
+                                    st.rerun()
                         with col5_2:
-                            if st.button(f"Reject {app_id}", key=f"reject_{app_id}"):
-                                if update_application_status(app_id, "Rejected"):
+                            if st.button(f"Reject {app['application_id']}", key=f"reject_{app['application_id']}"):
+                                if update_application_status(app['application_id'], "Rejected"):
                                     st.success("Application rejected!")
-                                    st.rerun()  # Updated to use st.rerun()
+                                    st.rerun()
                 
                 st.divider()
     else:
