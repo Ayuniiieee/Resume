@@ -30,6 +30,7 @@ def get_user_details(email: str) -> Optional[Dict[str, Any]]:
 def home():
     if st.session_state.get("logged_in", False):
         st.error("You must be logged in to access this page.")
+        st.session_state["page"] = "home"
         st.rerun()
         return
 
