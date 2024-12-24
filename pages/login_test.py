@@ -2,11 +2,12 @@ import streamlit as st
 import bcrypt
 import base64
 from supabase import create_client
-from config import SUPABASE_URL, SUPABASE_KEY
 
 def connect_db():
     try:
-        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        supabase_url = st.secrets["SUPABASE_URL"]
+        supabase_key = st.secrets["SUPABASE_KEY"]
+        supabase = create_client(supabase_url, supabase_key)
         return supabase
     except Exception as e:
         st.error(f"Database connection failed: {e}")
