@@ -1,7 +1,12 @@
 import streamlit as st
 import bcrypt
 import base64
+import sys
 from supabase import create_client
+# If config.py is in the same directory as your current file
+import os
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
 from config import SUPABASE_URL, SUPABASE_KEY
 
 def connect_db():
