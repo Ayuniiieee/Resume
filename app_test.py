@@ -23,13 +23,6 @@ except ImportError as e:
     st.error(f"Import error: {e}")
     st.stop()
     import nltk
-try:
-    from nltk.corpus import stopwords
-    STOPWORDS = set(stopwords.words('english'))
-except LookupError:
-    nltk.download('stopwords')
-    from nltk.corpus import stopwords
-    STOPWORDS = set(stopwords.words('english'))
 
 def connect_db():
     try:
@@ -151,7 +144,7 @@ def create_search_bar():
 def logout_user():
     st.session_state["logged_in"] = False
     st.session_state["email"] = None
-    st.session_state["page"] = "login"
+    st.session_state["page"] = "home"  # Change default to home
     st.session_state["user_type"] = None
     st.session_state["username"] = None
 
@@ -325,7 +318,7 @@ if __name__ == "__main__":
     if "user_type" not in st.session_state:
         st.session_state["user_type"] = None
     if "page" not in st.session_state:
-        st.session_state["page"] = "login"
+        st.session_state["page"] = "home"  
     if "username" not in st.session_state:  # Add this line
         st.session_state["username"] = None
 
