@@ -28,9 +28,9 @@ def get_user_details(email: str) -> Optional[Dict[str, Any]]:
         return None
 
 def home():
-    if st.session_state.get("logged_in", False):
+    if not st.session_state.get("logged_in", False):
         st.error("You must be logged in to access this page.")
-        st.session_state["page"] = "home"
+        st.session_state["page"] = "login"
         st.rerun()
         return
 

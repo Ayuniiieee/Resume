@@ -209,6 +209,35 @@ def run():
                     st.text('Resume pages: '+str(resume_data['no_of_pages']))
                 except:
                     pass
+                # Extract keywords from the uploaded resume
+                keywords = extract_keywords_from_resume(pdf_reader(save_image_path))
+                job_recommendations = recommend_jobs_from_database(keywords, reco_field)
+                
+                # In Check.py, replace the apply button section with this:
+                st.subheader("Job Recommendation 💼")
+                if job_recommendations:
+                    for job in job_recommendations:
+                        st.markdown(f"""
+                        **Job Title:** {job['job_title']}  
+                        **Subject Area:** {job['job_subject']}  
+                        **Location:** {job['location']}  
+                        **Required Skills:** {job['required_skills']}  
+                        """)
+                        if st.button(f"Apply for {job['job_title']}", key=f"apply_{job['job_title']}"):
+                            # Set session state variables for job details
+                            try:
+                                st.session_state['selected_job_title'] = job['job_title']
+                                st.session_state['selected_job_subject'] = job['job_subject']
+                                st.session_state['selected_job_location'] = job['location']
+                                st.session_state['selected_job_skills'] = job['required_skills']
+                                
+                                # Change the page in session state
+                                st.session_state['page'] = "apply"
+                                st.rerun()  # Replace experimental_rerun() with rerun()
+                            except Exception as e:
+                                st.error(f"Error switching page: {e}")
+                else:
+                    st.warning("No matching jobs found.")
                 cand_level = ''
                 if resume_data['no_of_pages'] == 1:
                     cand_level = "Fresher"
@@ -300,37 +329,6 @@ def run():
                         st.markdown('''<h4 style='text-align: left; color: #1ed760;'>Adding this skills to resume will boost🚀 the chances of getting a Job💼</h4>''',unsafe_allow_html=True)
                         rec_course = course_recommender(uiux_course)
                         break
-
-                # Extract keywords from the uploaded resume
-                # Extract keywords from the uploaded resume
-                keywords = extract_keywords_from_resume(pdf_reader(save_image_path))
-                job_recommendations = recommend_jobs_from_database(keywords, reco_field)
-                
-                # In Check.py, replace the apply button section with this:
-                st.subheader("Job Recommendation 💼")
-                if job_recommendations:
-                    for job in job_recommendations:
-                        st.markdown(f"""
-                        **Job Title:** {job['job_title']}  
-                        **Subject Area:** {job['job_subject']}  
-                        **Location:** {job['location']}  
-                        **Required Skills:** {job['required_skills']}  
-                        """)
-                        if st.button(f"Apply for {job['job_title']}", key=f"apply_{job['job_title']}"):
-                            # Set session state variables for job details
-                            try:
-                                st.session_state['selected_job_title'] = job['job_title']
-                                st.session_state['selected_job_subject'] = job['job_subject']
-                                st.session_state['selected_job_location'] = job['location']
-                                st.session_state['selected_job_skills'] = job['required_skills']
-                                
-                                # Change the page in session state
-                                st.session_state['page'] = "apply"
-                                st.rerun()  # Replace experimental_rerun() with rerun()
-                            except Exception as e:
-                                st.error(f"Error switching page: {e}")
-                else:
-                    st.warning("No matching jobs found.")
 
                 ## Insert into table
                 ts = time.time()
