@@ -3,18 +3,17 @@ import re
 import bcrypt
 from supabase import create_client
 from typing import Optional
-
-# Supabase configuration
-supabase_url = "https://duiomhgeqricsyjmeamr.supabase.co"
-supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1aW9taGdlcXJpY3N5am1lYW1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDczNTMsImV4cCI6MjA1MDUyMzM1M30.VRVw8jQLSQ3IzWhb2NonPHEQ2Gwq-k7WjvHB3WcLe48"
+from config import SUPABASE_URL, SUPABASE_KEY
 
 def connect_db():
-    """Create and return Supabase client."""
     try:
-        return create_client(supabase_url, supabase_key)
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        return supabase
     except Exception as e:
         st.error(f"Database connection failed: {e}")
         return None
+
+# Rest of your signup code remains the same...
 
 def is_valid_email(email: str) -> bool:
     """Validate email format."""
