@@ -3,13 +3,28 @@ import bcrypt
 import base64
 import sys
 from supabase import create_client
-# If config.py is in the same directory as your current file
-import os
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, current_dir)
-from config import SUPABASE_URL, SUPABASE_KEY
+
+# Define Supabase credentials directly
+SUPABASE_URL = "https://duiomhgeqricsyjmeamr.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1aW9taGdlcXJpY3N5am1lYW1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDczNTMsImV4cCI6MjA1MDUyMzM1M30.VRVw8jQLSQ3IzWhb2NonPHEQ2Gwq-k7WjvHB3WcLe48"
+
+def connect_db():import streamlit as st
+import bcrypt
+import base64
+import sys
+from supabase import create_client
+
+# Define Supabase credentials directly
+SUPABASE_URL = "https://duiomhgeqricsyjmeamr.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1aW9taGdlcXJpY3N5am1lYW1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDczNTMsImV4cCI6MjA1MDUyMzM1M30.VRVw8jQLSQ3IzWhb2NonPHEQ2Gwq-k7WjvHB3WcLe48"
 
 def connect_db():
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        return supabase
+    except Exception as e:
+        st.error(f"Database connection failed: {e}")
+        return None
     try:
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
         return supabase
