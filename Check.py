@@ -1,3 +1,6 @@
+import nltk
+nltk.download('stopwords')
+nltk.download('punkt')
 import os
 from supabase import create_client
 import streamlit as st
@@ -19,14 +22,6 @@ os.environ['PAFY_BACKEND'] = "internal"
 import pafy
 import plotly.express as px
 import re
-import nltk
-try:
-    from nltk.corpus import stopwords
-    STOPWORDS = set(stopwords.words('english'))
-except LookupError:
-    nltk.download('stopwords')
-    from nltk.corpus import stopwords
-    STOPWORDS = set(stopwords.words('english'))
 
 # Supabase configuration
 supabase_url = "https://duiomhgeqricsyjmeamr.supabase.co"
