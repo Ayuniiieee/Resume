@@ -9,3 +9,4 @@ streamlit-tags
 Pillow
 supabase
 bcrypt
+nltk>=3.6.0
