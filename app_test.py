@@ -22,6 +22,14 @@ try:
 except ImportError as e:
     st.error(f"Import error: {e}")
     st.stop()
+    import nltk
+try:
+    from nltk.corpus import stopwords
+    STOPWORDS = set(stopwords.words('english'))
+except LookupError:
+    nltk.download('stopwords')
+    from nltk.corpus import stopwords
+    STOPWORDS = set(stopwords.words('english'))
 
 def connect_db():
     try:

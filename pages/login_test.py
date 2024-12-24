@@ -6,10 +6,11 @@ from config import SUPABASE_URL, SUPABASE_KEY
 
 def connect_db():
     try:
+        # Create Supabase client
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
         return supabase
     except Exception as e:
-        st.error(f"Database connection failed: {e}")
+        st.error(f"Database connection failed: {str(e)}")
         return None
 
 def get_base64_image(image_path):
@@ -101,26 +102,20 @@ def login():
         try:
             # Execute Supabase Query
             response = supabase.table('users').select('*').eq('email', email).execute()
-            
             if not response.data:
                 st.error("No user found with this email.")
                 return
-                
+
             user = response.data[0]
             stored_password = user.get('password')
-            
+
             if not stored_password:
                 st.error("Invalid user data.")
                 return
-                
-            # Convert stored password to bytes if it's a string
-            if isinstance(stored_password, str):
-                stored_password = stored_password.encode('utf-8')
-            
+
             # Verify Password
-            if bcrypt.checkpw(password.encode('utf-8'), stored_password):
+            if bcrypt.checkpw(password.encode('utf-8'), stored_password.encode('utf-8')):
                 st.success(f"Welcome, {email}!")
-                # Set session state
                 st.session_state.update({
                     "logged_in": True,
                     "email": email,
@@ -131,15 +126,14 @@ def login():
                 st.rerun()
             else:
                 st.error("Invalid password.")
-                
+
         except Exception as e:
-            st.error(f"Login error: {e}")
-            return
+            st.error(f"Login error: {str(e)}")
 
     st.markdown("Don't have an account?")
     if st.button("Sign Up", key="login_page_signup"):
         st.session_state["page"] = "signup"
         st.rerun()
-
+        
 if __name__ == "__main__":
     login()
