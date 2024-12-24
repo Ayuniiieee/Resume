@@ -21,6 +21,21 @@ import plotly.express as px
 import re
 import nltk
 nltk.download('stopwords')
+# Set NLTK data path explicitly (add this before downloading)
+nltk_data_dir = os.path.join(os.path.expanduser('~'), 'nltk_data')
+if not os.path.exists(nltk_data_dir):
+    os.makedirs(nltk_data_dir)
+nltk.data.path.append(nltk_data_dir)
+
+# Download all required NLTK data
+try:
+    nltk.download('stopwords', download_dir=nltk_data_dir)
+    nltk.download('punkt', download_dir=nltk_data_dir)
+    nltk.download('averaged_perceptron_tagger', download_dir=nltk_data_dir)
+    nltk.download('maxent_ne_chunker', download_dir=nltk_data_dir)
+    nltk.download('words', download_dir=nltk_data_dir)
+except Exception as e:
+    st.error(f"Error downloading NLTK data: {e}")
 
 # Supabase configuration
 supabase_url = "https://duiomhgeqricsyjmeamr.supabase.co"
