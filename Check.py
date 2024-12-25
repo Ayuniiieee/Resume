@@ -23,17 +23,21 @@ import pafy
 import plotly.express as px
 import re
 import spacy
-try:
-    nlp = spacy.load('en_core_web_sm')
-except OSError:
-    from spacy.cli import download
-    download('en_core_web_sm')
-    nlp = spacy.load('en_core_web_sm')
+from spacy.util import get_lang_class
+
+def check_spacy_model(model_name='en_core_web_sm'):
+    try:
+        nlp = spacy.load(model_name)
+        return nlp
+    except OSError:
+        st.error(f"Could not load the spaCy model '{model_name}'. Please ensure it is installed.")
+        return None
 
 # Supabase configuration
 supabase_url = "https://duiomhgeqricsyjmeamr.supabase.co"
 supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1aW9taGdlcXJpY3N5am1lYW1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDczNTMsImV4cCI6MjA1MDUyMzM1M30.VRVw8jQLSQ3IzWhb2NonPHEQ2Gwq-k7WjvHB3WcLe48"
 supabase = create_client(supabase_url, supabase_key)
+
 
 def connect_db():
     """Create and return Supabase client."""
@@ -186,6 +190,7 @@ def insert_data(user_id, name, email, res_score, timestamp, no_of_pages, reco_fi
         st.error(f"Error inserting data: {e}")
 
 def run():
+    nlp = check_spacy_model()
     if nlp is None:
         return
     user_id = check()  # Call check to verify login and get user_id
