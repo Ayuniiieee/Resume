@@ -1,6 +1,4 @@
 import nltk
-nltk.download('stopwords')
-nltk.download('punkt')
 import os
 from supabase import create_client
 import streamlit as st
@@ -23,20 +21,28 @@ import pafy
 import plotly.express as px
 import re
 import spacy
-from spacy.cli import download
 
-# Attempt to load the SpaCy model
-try:
-    nlp = spacy.load('en_core_web_sm')
-except OSError:
-    download('en_core_web_sm')
-    nlp = spacy.load('en_core_web_sm')
+# Download NLTK data
+nltk.download('stopwords')
+nltk.download('punkt')
 
 # Supabase configuration
 supabase_url = "https://duiomhgeqricsyjmeamr.supabase.co"
-supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1aW9taGdlcXJpY3N5am1lYW1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDczNTMsImV4cCI6MjA1MDUyMzM1M30.VRVw8jQLSQ3IzWhb2NonPHEQ2Gwq-k7WjvHB3WcLe48"
+supabase_key = "YOUR_SUPABASE_KEY"  # Replace with your actual key
 supabase = create_client(supabase_url, supabase_key)
 
+# Load SpaCy model once
+nlp = None
+
+def load_spacy_model():
+    global nlp
+    if nlp is None:
+        try:
+            nlp = spacy.load('en_core_web_sm')
+        except OSError:
+            st.warning("Downloading SpaCy model. This may take a moment...")
+            spacy.cli.download('en_core_web_sm')
+            nlp = spacy.load('en_core_web_sm')
 
 def connect_db():
     """Create and return Supabase client."""
@@ -190,7 +196,7 @@ def insert_data(user_id, name, email, res_score, timestamp, no_of_pages, reco_fi
         st.error(f"Error inserting data: {e}")
 
 def run():
-    # Create upload directory if it doesn't exist
+    load_spacy_model()
     upload_dir = './Uploaded_Resumes'
     os.makedirs(upload_dir, exist_ok=True)
     
