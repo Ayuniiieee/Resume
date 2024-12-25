@@ -257,6 +257,9 @@ def main():
                 if st.button("◈  Application Overview", key="application_overview_button", use_container_width=True):
                     st.session_state["page"] = "application_overview"
                     st.rerun()
+                if st.button("◈  List of Job", key="job_list_button", use_container_width=True):
+                    st.session_state["page"] = "job_list"
+                    st.rerun()
             
             st.markdown("<div class='sidebar-divider'></div>", unsafe_allow_html=True)
             
