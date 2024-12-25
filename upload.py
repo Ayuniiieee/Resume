@@ -158,11 +158,11 @@ def application_overview():
                     if st.button("Approve", key=f"approve_{app['application_id']}"):
                         if update_application_status(app['application_id'], "Approved"):
                             st.success("Application approved!")
-                            st.rerun()  # Use st.rerun() if experimental_rerun() causes issues
+                            st.rerun()  # Correct usage for rerunning the app
                     if st.button("Reject", key=f"reject_{app['application_id']}"):
                         if update_application_status(app['application_id'], "Rejected"):
                             st.success("Application rejected!")
-                            st.rerun()  # Use st.rerun() if experimental_rerun() causes issues
+                            st.rerun()  # Correct usage for rerunning the app
                     
                     if app['resume_path']:
                         resume_content = download_resume(app['resume_path'])
