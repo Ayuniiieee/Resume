@@ -5,7 +5,6 @@ import datetime
 from typing import Optional
 import os
 from pathlib import Path
-import spacy
 from supabase import create_client, Client
 import streamlit as st
 import pandas as pd
@@ -26,7 +25,10 @@ os.environ['PAFY_BACKEND'] = "internal"
 import pafy
 import plotly.express as px
 import re
+import spacy
 
+# Load the model from the specific path
+nlp = spacy.load('/workspaces/Resume/.venv/lib/python3.11/site-packages/en_core_web_sm/en_core_web_sm-3.8.0')
 def initialize_spacy():
     """Initialize spaCy with proper error handling and installation"""
     try:
