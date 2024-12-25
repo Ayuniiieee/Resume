@@ -25,12 +25,17 @@ def fetch_applications(user_email):
             .from_('job_applications')
             .select('''
                 id,
-                job_id (job_title, job_subject, parent_email),
+                job_id (
+                    id,
+                    job_title,
+                    job_subject
+                ),
+                job_id:job_listings!parent_email,  -- Use this to get parent_email from job_listings
                 user_id (full_name),
                 resume_path,
                 status
             ''')
-            .eq('job_id.parent_email', user_email)  # Adjusted to use the correct foreign key reference
+            .eq('job_id.parent_email', user_email)  # Ensure this references the right email
             .execute()
         )
 
@@ -44,6 +49,7 @@ def fetch_applications(user_email):
                 'application_id': item['id'],
                 'job_title': item['job_id']['job_title'],  # Access via 'job_id'
                 'job_subject': item['job_id']['job_subject'],  # Access via 'job_id'
+                'parent_email': item['job_listings']['parent_email'],  # Access parent_email
                 'full_name': item['user_id']['full_name'],  # Access via 'user_id'
                 'resume_path': item['resume_path'],
                 'status': item.get('status', 'Pending')
