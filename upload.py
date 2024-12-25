@@ -1,7 +1,17 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from Home_test import connect_db
+from supabase import create_client
+from config import SUPABASE_URL, SUPABASE_KEY
+
+def connect_db():
+    try:
+        # Create Supabase client
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        return supabase
+    except Exception as e:
+        st.error(f"Database connection failed: {str(e)}")
+        return None
 
 def download_resume(resume_path):
     """Handle resume download from Supabase storage"""
