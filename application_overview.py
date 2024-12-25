@@ -20,17 +20,16 @@ def fetch_applications(user_email):
         return []
     
     try:
-        # Adjusted query to include necessary joins
         response = (supabase
             .from_('job_applications')
             .select('''
                 id,
-                job_id (job_title, job_subject, parent_email),
-                user_id (full_name),
+                job_listings:job_id (job_title, job_subject, parent_email),
+                users:user_id (full_name),
                 resume_path,
                 status
             ''')
-            .eq('job_id.parent_email', user_email)  # Adjusted to use the correct foreign key reference
+            .eq('job_listings.parent_email', user_email)
             .execute()
         )
 
