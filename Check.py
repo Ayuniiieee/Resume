@@ -1,4 +1,6 @@
 import nltk
+nltk.download('stopwords')
+nltk.download('punkt')
 import os
 from supabase import create_client
 import streamlit as st
@@ -21,10 +23,6 @@ import pafy
 import plotly.express as px
 import re
 import spacy
-
-# Download NLTK data
-nltk.download('stopwords')
-nltk.download('punkt')
 
 # Supabase configuration
 supabase_url = "https://duiomhgeqricsyjmeamr.supabase.co"
