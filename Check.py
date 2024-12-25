@@ -23,7 +23,6 @@ import pafy
 import plotly.express as px
 import re
 import spacy
-print(spacy.util.get_package_path('en_core_web_sm'))
 
 # Supabase configuration
 supabase_url = "https://duiomhgeqricsyjmeamr.supabase.co"
