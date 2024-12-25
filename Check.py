@@ -1,6 +1,4 @@
 import nltk
-nltk.download('stopwords')
-nltk.download('punkt')
 import os
 from supabase import create_client
 import streamlit as st
@@ -23,6 +21,10 @@ import pafy
 import plotly.express as px
 import re
 import spacy
+
+# Download NLTK data
+nltk.download('stopwords')
+nltk.download('punkt')
 
 # Supabase configuration
 supabase_url = "https://duiomhgeqricsyjmeamr.supabase.co"
@@ -194,7 +196,7 @@ def insert_data(user_id, name, email, res_score, timestamp, no_of_pages, reco_fi
         st.error(f"Error inserting data: {e}")
 
 def run():
-    load_spacy_model()
+    # Create upload directory if it doesn't exist
     upload_dir = './Uploaded_Resumes'
     os.makedirs(upload_dir, exist_ok=True)
     
