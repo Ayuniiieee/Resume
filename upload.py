@@ -3,22 +3,6 @@ import pandas as pd
 from datetime import datetime
 from Home_test import connect_db
 
-def download_resume(resume_path):
-    """Handle resume download from Supabase storage"""
-    supabase = connect_db()
-    if not supabase:
-        return None
-    
-    try:
-        # Get the file from Supabase storage
-        response = supabase.storage.from_('resumes').download(resume_path)
-        if response:
-            return response
-        return None
-    except Exception as e:
-        st.error(f"Error downloading resume: {e}")
-        return None
-
 def fetch_applications(user_email):
     """Fetch all applications for jobs posted by the parent"""
     supabase = connect_db()
