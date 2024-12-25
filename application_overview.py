@@ -19,14 +19,7 @@ def fetch_applications(user_email):
         return []
     
     try:
-        # Fetch job listings associated with the user's email
-        job_listings = supabase.from_("job_listings").select("id").eq("parent_email", user_email).execute()
-        job_ids = [job['id'] for job in job_listings.data] if job_listings.data else []
-
-        if not job_ids:
-            return []  # No job listings found for this user
-
-        # Fetch job applications where job_id corresponds to listings posted by the user's email
+        # Fetch applications with job listings in a single query using inner join
         response = (supabase
             .from_("job_applications")
             .select('''
@@ -34,9 +27,10 @@ def fetch_applications(user_email):
                 job_id,
                 user_id (full_name),
                 resume_path,
-                status
+                status,
+                job_listings!inner (parent_email)
             ''')
-            .in_("job_id", job_ids)  # Use the list of job_ids to filter applications
+            .eq('job_listings.parent_email', user_email)
             .execute()
         )
 
