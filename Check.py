@@ -180,17 +180,24 @@ def insert_data(user_id, name, email, res_score, timestamp, no_of_pages, reco_fi
         st.error(f"Error inserting data: {e}")
 
 def run():
-    user_id = check()  # Call check to verify login and get user_id
-    if user_id is None:
-        return
-    display_user_dashboard(user_id)
-    st.markdown('''<h5 style='text-align: left; color: #021659;'> Upload your resume, and get smart recommendations</h5>''',
-                    unsafe_allow_html=True)
-    pdf_file = st.file_uploader("Choose your Resume", type=["pdf"])
-    if pdf_file is not None:
+        user_id = check()  # Call check to verify login and get user_id
+        if user_id is None:
+            return
+        display_user_dashboard(user_id)
+        st.markdown('''<h5 style='text-align: left; color: #021659;'> Upload your resume, and get smart recommendations</h5>''',
+                        unsafe_allow_html=True)
+        pdf_file = st.file_uploader("Choose your Resume", type=["pdf"])
+        
+        if pdf_file is not None:
             with st.spinner('Uploading your Resume...'):
                 time.sleep(4)
-            save_image_path = './Uploaded_Resumes/'+pdf_file.name
+
+            # Ensure the directory exists
+            save_dir = './Uploaded_Resumes'
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)  # Create the directory if it doesn't exist
+
+            save_image_path = os.path.join(save_dir, pdf_file.name)
             with open(save_image_path, "wb") as f:
                 f.write(pdf_file.getbuffer())
             show_pdf(save_image_path)
