@@ -36,7 +36,7 @@ def connect_db():
     except Exception as e:
         st.error(f"Error connecting to Supabase: {e}")
         return None
-    
+
 def check():
     """Check if the user is logged in and fetch user details."""
     if not st.session_state.get("logged_in"):
