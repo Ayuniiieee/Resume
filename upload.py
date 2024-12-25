@@ -1,170 +1,163 @@
 import streamlit as st
-import pandas as pd
+from supabase import create_client
 from datetime import datetime
 from Home_test import connect_db
 
-def fetch_applications(user_email):
-    """Fetch all applications for jobs posted by the parent"""
-    supabase = connect_db()
-    if not supabase:
-        return []
+def upload():
+    st.title("📤 Job Listing Upload")
     
-    try:
-        # First, get the job IDs for the parent's email
-        jobs_response = (supabase
-            .from_("job_listings")
-            .select("id")
-            .eq("parent_email", user_email)
-            .execute()
-        )
-        
-        if not jobs_response.data:
-            return []
-            
-        job_ids = [job['id'] for job in jobs_response.data]
-        
-        # Then fetch applications for those job IDs
-        applications_response = (supabase
-            .from_("job_applications")
-            .select('''
-                id,
-                job_id,
-                user_id (
-                    full_name,
-                    email
-                ),
-                resume_path,
-                status,
-                created_at,
-                job_listings!inner (
-                    job_title,
-                    job_description
-                )
-            ''')
-            .in_("job_id", job_ids)
-            .order('created_at', desc=True)
-            .execute()
-        )
-
-        if not applications_response.data:
-            return []
-
-        # Transform the data to match the expected format
-        applications = []
-        for item in applications_response.data:
-            applications.append({
-                'application_id': item['id'],
-                'job_id': item['job_id'],
-                'full_name': item['user_id']['full_name'],
-                'email': item['user_id']['email'],
-                'resume_path': item['resume_path'],
-                'status': item.get('status', 'Pending'),
-                'job_title': item['job_listings']['job_title'],
-                'created_at': item['created_at']
-            })
-
-        return applications
-
-    except Exception as e:
-        st.error(f"Error fetching applications: {e}")
-        return []
-
-def update_application_status(application_id, new_status):
-    """Update the status of an application"""
-    supabase = connect_db()
-    if not supabase:
-        return False
-    
-    try:
-        # Update the application status
-        response = (supabase
-            .from_("job_applications")
-            .update({
-                'status': new_status,
-                'updated_at': datetime.now().isoformat()
-            })
-            .eq('id', application_id)
-            .execute()
-        )
-
-        # If successful, send notification (you can implement this later)
-        if response.data:
-            # TODO: Implement notification system
-            return True
-        return False
-
-    except Exception as e:
-        st.error(f"Error updating application status: {e}")
-        return False
-
-def application_overview():
-    st.title("Application Overview")
-
+    # Check login status and user type
     if not st.session_state.get("logged_in"):
-        st.warning("Please log in to view applications.")
+        st.warning("Please log in first.")
         return
-
-    user_email = st.session_state.get("email")
-    if not user_email:
-        st.error("Unable to retrieve your email. Please log in again.")
+    
+    if st.session_state.get("user_type", "").lower() != "parent":
+        st.error("Access denied. This page is for parents only.")
         return
+    
+    parent_email = st.session_state.get("email")
+    supabase = connect_db()
+    
+    # Fetch parent's details from Supabase
+    parent_details = None
+    
+    if supabase:
+        try:
+            response = supabase.table('users').select('*').eq('email', parent_email).execute()
+            if response.data:
+                parent_details = response.data[0]
+            else:
+                st.error("Unable to retrieve parent information.")
+                return
+        except Exception as e:
+            st.error(f"Error fetching parent details: {e}")
+            return
+    
+    # Job Upload Form
+    with st.form("job_upload_form", clear_on_submit=True):
+        st.header("Job Listing Details")
+        
+        # Personal & Contact Information (Pre-filled)
+        st.subheader("Personal Information")
+        col1, col2 = st.columns(2)
+        with col1:
+            full_name = st.text_input("Full Name", value=parent_details['full_name'], disabled=True)
+        with col2:
+            email = st.text_input("Email", value=parent_email, disabled=True)
+        
+        # Contact Information
+        st.subheader("Contact Information")
+        privacy_options = ["Optional", "Mandatory"]
+        phone_privacy = st.radio("Phone Number Privacy", privacy_options, index=0)
+        
+        if phone_privacy == "Mandatory":
+            phone_number = st.text_input("Phone Number", placeholder="Enter your phone number", required=True)
+        else:
+            phone_number = st.text_input("Phone Number (Optional)", placeholder="Enter your phone number")
+        
+        # Location Details
+        st.subheader("Location")
+        col1, col2 = st.columns(2)
+        with col1:
+            city = st.text_input("City")
+        with col2:
+            state = st.text_input("State")
+        
+        detailed_address = st.text_area("Detailed Address (Optional)")
+        
+        # Preferred Contact Method
+        contact_methods = ["Email", "Phone", "Platform Messaging"]
+        preferred_contact = st.selectbox("Preferred Contact Method", contact_methods)
+        
+        # Job Details
+        st.subheader("Job Details")
+        job_title = st.text_input("Job Title/Role", placeholder="e.g., Math Tutor for 5th Grade")
+        job_description = st.text_area("Job Description", placeholder="Provide detailed description of job duties and expectations")
+        
+        # Date and Frequency
+        col1, col2 = st.columns(2)
+        with col1:
+            preferred_start_date = st.date_input("Preferred Start Date")
+        with col2:
+            job_frequency = st.text_input("Frequency and Duration", placeholder="e.g., Twice a week for 2 hours")
+        
+        # Qualifications
+        st.subheader("Qualifications/Requirements")
+        required_skills = st.text_area("Specific Skills Needed", placeholder="List required skills and experience")
+        educational_background = st.text_input("Educational Background (Optional)")
+        age_range = st.text_input("Age Range (Optional)")
+        
+        # Compensation
+        st.subheader("Compensation")
+        col1, col2 = st.columns(2)
+        with col1:
+            hourly_rate = st.number_input("Hourly Rate ($)", min_value=0.0, step=0.5)
+        with col2:
+            rate_negotiable = st.checkbox("Rate is Negotiable")
+        
+        # Additional Details
+        st.subheader("Additional Details")
+        job_subject = st.text_input("Subject or Type of Job", placeholder="e.g., Math, Science, Babysitting")
+        special_conditions = st.text_area("Special Conditions (Optional)", placeholder="e.g., Must be comfortable with pets")
+        
+        # Submit Button
+        submitted = st.form_submit_button("Upload Job Listing")
+        
+    # Inserting Data into Supabase
+    if submitted:
+        # Validate Required Fields
+        if not job_title or not job_description:
+            st.error("Job Title and Description are required.")
+            return
 
-    # Fetch applications
-    applications = fetch_applications(user_email)
-
-    if applications:
-        # Add filters
-        status_filter = st.selectbox(
-            "Filter by Status",
-            ["All", "Pending", "Approved", "Rejected"],
-            key="status_filter"
-        )
-
-        # Filter applications based on selected status
-        filtered_applications = applications
-        if status_filter != "All":
-            filtered_applications = [app for app in applications if app['status'] == status_filter]
-
-        # Display applications
-        for app in filtered_applications:
-            with st.container():
-                col1, col2 = st.columns([3, 2])
+        # Inserting Data into Supabase
+        if supabase:
+            try:
+                # Convert preferred_start_date to string format
+                preferred_start_date_str = preferred_start_date.strftime('%Y-%m-%d') if preferred_start_date else None
                 
-                with col1:
-                    st.markdown(f"**Job Title:** {app['job_title']}")
-                    st.markdown(f"**Applicant:** {app['full_name']}")
-                    st.markdown(f"**Email:** {app['email']}")
-                    st.markdown(f"**Applied on:** {datetime.fromisoformat(app['created_at']).strftime('%Y-%m-%d %H:%M')}")
-                
-                with col2:
-                    st.markdown(f"**Status:** {app['status']}")
-                    if app['status'] == 'Pending':
-                        if st.button("Approve", key=f"approve_{app['application_id']}"):
-                            if update_application_status(app['application_id'], "Approved"):
-                                st.success("Application approved!")
-                                st.rerun()
-                        if st.button("Reject", key=f"reject_{app['application_id']}"):
-                            if update_application_status(app['application_id'], "Rejected"):
-                                st.success("Application rejected!")
-                                st.rerun()
-                    
-                    if app['resume_path']:
-                        resume_content = download_resume(app['resume_path'])
-                        if resume_content:
-                            st.download_button(
-                                label="Download Resume",
-                                data=resume_content,
-                                file_name=f"resume_{app['full_name']}.pdf",
-                                mime="application/pdf",
-                                key=f"download_{app['application_id']}"
-                            )
-                
-                st.divider()
-    else:
-        st.info("No applications found for your jobs.")
+                # Prepare the data to be inserted
+                job_data = {
+                    "parent_email": email,
+                    "full_name": full_name,
+                    "phone_number": phone_number,
+                    "city": city,
+                    "state": state,
+                    "detailed_address": detailed_address,
+                    "preferred_contact": preferred_contact,
+                    "job_title": job_title,
+                    "job_description": job_description,
+                    "preferred_start_date": preferred_start_date_str,
+                    "job_frequency": job_frequency,
+                    "required_skills": required_skills,
+                    "educational_background": educational_background,
+                    "age_range": age_range,
+                    "hourly_rate": hourly_rate,
+                    "rate_negotiable": rate_negotiable,
+                    "job_subject": job_subject,
+                    "special_conditions": special_conditions,
+                    "created_at": datetime.now().isoformat(),
+                    "status": "Active"
+                }
 
-def main():
-    application_overview()
+                # Insert into Supabase and handle response
+                response = supabase.from_('job_listings').insert(job_data).execute()
+                
+                # Check if the insert was successful by looking for data in the response
+                if hasattr(response, 'data') and response.data:
+                    st.success("Job Listing Uploaded Successfully!")
+                    st.balloons()
+                    # Clear the form or redirect as needed
+                    st.experimental_rerun()
+                else:
+                    st.error("Failed to upload job listing. Please try again.")
 
+            except Exception as e:
+                st.error(f"Error uploading job listing: {e}")
+                st.error("Please check your input and try again.")
+        else:
+            st.error("Failed to connect to Supabase.")
+
+# Ensure this is only run when the script is directly executed
 if __name__ == "__main__":
-    main()
+    upload()
