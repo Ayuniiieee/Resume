@@ -20,20 +20,19 @@ def fetch_applications(user_email):
         return []
     
     try:
-        # Adjust the query to ensure it includes the necessary joins
+        # Adjust the query to ensure it includes the necessary joins correctly
         response = (supabase
             .from_('job_applications')
             .select('''
                 id,
-                job_listings:job_id(job_title, job_subject, parent_email),
-                users:user_id(full_name),
+                job_id (job_title, job_subject, parent_email),  -- Adjust according to your schema
+                user_id (full_name),
                 resume_path,
                 status
             ''')
-            .eq('job_listings.parent_email', user_email)  # Ensure this matches the data
+            .eq('job_id.parent_email', user_email)  # Ensure this matches the data
             .execute()
         )
-
 
         if not response.data:
             return []
@@ -43,9 +42,9 @@ def fetch_applications(user_email):
         for item in response.data:
             applications.append({
                 'application_id': item['id'],
-                'job_title': item['job_listings']['job_title'],
-                'job_subject': item['job_listings']['job_subject'],
-                'full_name': item['users']['full_name'],
+                'job_title': item['job_id']['job_title'],  # Change to job_id
+                'job_subject': item['job_id']['job_subject'],  # Change to job_id
+                'full_name': item['user_id']['full_name'],  # Change to user_id
                 'resume_path': item['resume_path'],
                 'status': item.get('status', 'Pending')
             })
