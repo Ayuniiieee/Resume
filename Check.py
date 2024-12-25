@@ -27,8 +27,8 @@ import plotly.express as px
 import re
 import spacy
 
-# Load the model from the specific path
-nlp = spacy.load('/workspaces/Resume/.venv/lib/python3.11/site-packages/en_core_web_sm/en_core_web_sm-3.8.0')
+# Load the model directory instead of the specific version folder
+nlp = spacy.load('/workspaces/Resume/.venv/lib/python3.11/site-packages/en_core_web_sm')
 def initialize_spacy():
     """Initialize spaCy with proper error handling and installation"""
     try:
