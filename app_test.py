@@ -19,7 +19,7 @@ try:
     from applied_jobs import main as applied_jobs
     from about_us import about_us
     from apply import apply 
-    from job_list import job_list
+    from job_list import list_jobs  # Correct import of the function
 except ImportError as e:
     st.error(f"Import error: {e}")
     st.stop()
@@ -312,7 +312,7 @@ def main():
     elif st.session_state.get("page") == "apply":
         apply()  # Call the apply function
     elif st.session_state.get("page") == "job_list":
-        job_list()  # Call the apply function
+        list_jobs()  # Call the correct function
   
 
 if __name__ == "__main__":
