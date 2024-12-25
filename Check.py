@@ -8,6 +8,8 @@ import pandas as pd
 import base64, random
 import time, datetime
 import sys
+import spacy
+from spacy.cli import download
 from pyresparser import ResumeParser
 from pdfminer3.layout import LAParams, LTTextBox
 from pdfminer3.pdfpage import PDFPage
