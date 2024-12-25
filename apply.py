@@ -20,6 +20,12 @@ try:
 except ImportError as e:
     st.error(f"Import error: {e}")
     st.stop()
+    
+def validate_user_session():
+    if not st.session_state.get("logged_in") or not st.session_state.get("user_id"):
+        st.error("You must be logged in to access this page. Redirecting to login.")
+        st.session_state["page"] = "login"
+        st.rerun()
 
 # Session State Initialization
 def initialize_session():
@@ -51,17 +57,17 @@ def connect_db():
         st.error(f"Database connection failed: {e}")
         return None
 
-# Function to handle user login
 def handle_login(email, password):
     supabase = connect_db()
     if not supabase:
         return None
 
     try:
-        # Check user credentials
         response = supabase.from_("users").select("id").eq("email", email).eq("password", password).execute()
-        if response.data:
-            return response.data[0]['id']
+        if response.data and len(response.data) > 0:
+            user_id = response.data[0]['id']
+            st.session_state["user_id"] = user_id  # Set the user_id in session state
+            return user_id
         else:
             st.error("Invalid credentials.")
             return None

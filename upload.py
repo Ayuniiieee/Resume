@@ -163,10 +163,10 @@ def upload():
 def main():
     # Check if the user is redirected after upload
     if st.session_state.get('redirect_to') == 'job_list':
-        list_jobs()  # Show the list of jobs
+        list_jobs()  # Call the function to display the job list
         del st.session_state['redirect_to']  # Clear the redirect flag
     else:
-        upload()  # Show the upload form
+        upload() 
 
 # Ensure this is only run when the script is directly executed
 if __name__ == "__main__":

@@ -3,10 +3,11 @@ import pandas as pd
 from supabase import create_client
 from config import SUPABASE_URL, SUPABASE_KEY
 
-if "logged_in" not in st.session_state:
-        st.session_state["logged_in"] = False
-if "user_id" not in st.session_state:
-        st.session_state["user_id"] = None
+def validate_user_session():
+    if not st.session_state.get("logged_in") or not st.session_state.get("user_id"):
+        st.error("You must be logged in to access this page. Redirecting to login.")
+        st.session_state["page"] = "login"
+        st.rerun()
 
 def connect_db():
     try:
@@ -61,7 +62,6 @@ def fetch_all_jobs(supabase, user_id):
         return []
 
 def main():
-
     st.markdown("""
         <style>
         .title {
@@ -86,15 +86,21 @@ def main():
     if not supabase:
         st.error("Unable to connect to the database.")
         return
+    
+    # Check if the user is logged in
     if not st.session_state.get("logged_in"):
-        st.warning("Please log in to view this page.")
+        st.warning("You are not logged in. Please log in to view this page.")
         st.session_state["page"] = "login"
         st.rerun()
         return
-    # Check if the user is logged in
-    user_id = st.session_state.get("user_id")  # Assuming user ID is stored in session state
+
+    # Retrieve user ID
+    user_id = st.session_state.get("user_id")
     if not user_id:
-        st.error("Unable to retrieve your user ID. Please log in again.")
+        st.error("Your session appears invalid. Please log in again.")
+        st.session_state["logged_in"] = False
+        st.session_state["page"] = "login"
+        st.rerun()
         return
 
     # Fetch all jobs
@@ -140,15 +146,7 @@ def main():
             st.dataframe(
                 filtered_df,
                 use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "No": st.column_config.NumberColumn(width="small"),
-                    "Status": st.column_config.SelectboxColumn(
-                        width="medium",
-                        options=["Pending", "Accepted", "Rejected"],
-                        required=True
-                    )
-                }
+                hide_index=True
             )
         else:
             st.warning("No jobs match the selected filters.")
