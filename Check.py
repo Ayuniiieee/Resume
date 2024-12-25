@@ -23,8 +23,7 @@ import pafy
 import plotly.express as px
 import re
 import spacy
-from spacy.util import get_lang_class
-
+# Function to check and load the spaCy model
 def check_spacy_model(model_name='en_core_web_sm'):
     try:
         nlp = spacy.load(model_name)
