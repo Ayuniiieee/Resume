@@ -148,7 +148,7 @@ def upload():
                     st.success("Job Listing Uploaded Successfully!")
                     st.balloons()
                     # Clear the form or redirect as needed
-                    st.experimental_rerun()
+                    st.rerun()  # Change here from experimental_rerun() to st.rerun()
                 else:
                     st.error("Failed to upload job listing. Please try again.")
 
