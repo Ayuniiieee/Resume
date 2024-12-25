@@ -136,21 +136,25 @@ def upload():
                     "rate_negotiable": rate_negotiable,
                     "job_subject": job_subject,
                     "special_conditions": special_conditions,
-                    "created_at": datetime.now().isoformat(),  # Add creation timestamp
-                    "status": "Active"  # Add default status
+                    "created_at": datetime.now().isoformat(),
+                    "status": "Active"
                 }
 
-                # Insert the job listing into the database
-                response = supabase.table('job_listings').insert(job_data).execute()
+                # Insert into Supabase and handle response
+                response = supabase.from_('job_listings').insert(job_data).execute()
                 
-                if response.data:  # Check if data was returned (successful insert)
+                # Check if the insert was successful by looking for data in the response
+                if hasattr(response, 'data') and response.data:
                     st.success("Job Listing Uploaded Successfully!")
                     st.balloons()
+                    # Clear the form or redirect as needed
+                    st.experimental_rerun()
                 else:
                     st.error("Failed to upload job listing. Please try again.")
 
             except Exception as e:
                 st.error(f"Error uploading job listing: {e}")
+                st.error("Please check your input and try again.")
         else:
             st.error("Failed to connect to Supabase.")
 
