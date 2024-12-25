@@ -4,6 +4,8 @@ nltk.download('punkt')
 import datetime
 from typing import Optional
 import os
+from pathlib import Path
+import spacy
 from supabase import create_client, Client
 import streamlit as st
 import pandas as pd
@@ -24,6 +26,11 @@ os.environ['PAFY_BACKEND'] = "internal"
 import pafy
 import plotly.express as px
 import re
+# Initialize spacy
+try:
+    spacy.load('en_core_web_sm')
+except OSError:
+    os.system('python -m spacy download en_core_web_sm')
 
 # Move Supabase configuration to environment variables or Streamlit secrets
 def get_supabase_client() -> Optional[Client]:
@@ -149,13 +156,66 @@ def pdf_reader(file):
     fake_file_handle.close()
     return text
 
-def show_pdf(file_path):
-    st.markdown(f"[Download PDF]({file_path})")
-    with open(file_path, "rb") as f:
-        base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-    # pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf">'
-    pdf_display = F'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf"></iframe>'
-    st.markdown(pdf_display, unsafe_allow_html=True)
+def show_pdf(file_path: str) -> None:
+    """
+    Display a PDF file in Streamlit securely
+    """
+    try:
+        # Read PDF file
+        with open(file_path, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+        
+        # Use Streamlit's native PDF display
+        pdf_display = f"""
+            <iframe
+                src="data:application/pdf;base64,{base64_pdf}"
+                width="100%"
+                height="800px"
+                type="application/pdf"
+                style="border: none;">
+            </iframe>
+        """
+        st.markdown(pdf_display, unsafe_allow_html=True)
+        
+    except Exception as e:
+        st.error(f"Error displaying PDF: {str(e)}")
+        
+def save_and_display_pdf(pdf_file) -> Optional[str]:
+    """
+    Safely save and display an uploaded PDF file
+    Returns the path to the saved file if successful, None otherwise
+    """
+    try:
+        # Create upload directory if it doesn't exist
+        upload_dir = Path('./Uploaded_Resumes')
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate safe filename
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_filename = f"{timestamp}_{pdf_file.name}"
+        save_path = upload_dir / safe_filename
+        
+        # Save file
+        with open(save_path, "wb") as f:
+            f.write(pdf_file.getbuffer())
+        
+        # Verify file was saved and is a valid PDF
+        if not save_path.exists():
+            st.error("Failed to save the uploaded file.")
+            return None
+            
+        # Check if file is actually a PDF
+        with open(save_path, "rb") as f:
+            if not f.read(4).startswith(b'%PDF'):
+                st.error("The uploaded file is not a valid PDF.")
+                os.remove(save_path)
+                return None
+                
+        return str(save_path)
+        
+    except Exception as e:
+        st.error(f"Error processing uploaded file: {str(e)}")
+        return None
 
 def course_recommender(course_list):
     st.subheader("**Courses & Certificates Recommendations 🎓**")
@@ -228,7 +288,13 @@ def run():
                     st.error("Failed to save the uploaded file.")
                     return
                     
-                show_pdf(save_image_path)
+                save_path = save_and_display_pdf(pdf_file)
+                if save_path is None:
+                    return
+                
+                # Display the PDF
+                show_pdf(save_path)
+
                 resume_data = ResumeParser(save_image_path).get_extracted_data()
                 
                 if resume_data:
