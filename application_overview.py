@@ -20,23 +20,17 @@ def fetch_applications(user_email):
         return []
     
     try:
-        # Using Supabase's query builder to join tables and fetch applications
+        # Adjust the query to ensure it includes the necessary joins
         response = (supabase
             .from_('job_applications')
             .select('''
                 id,
-                job_listings (
-                    job_title,
-                    job_subject,
-                    parent_email
-                ),
-                users (
-                    full_name
-                ),
+                job_listings(job_title, job_subject, parent_email),
+                users(full_name),
                 resume_path,
                 status
             ''')
-            .eq('job_listings.parent_email', user_email)
+            .eq('job_listings.parent_email', user_email)  # Ensure this condition is correct
             .execute()
         )
 
