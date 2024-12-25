@@ -25,6 +25,14 @@ import pafy
 import plotly.express as px
 import re
 
+# Initialize spaCy - download model if not present
+try:
+    nlp = spacy.load('en_core_web_sm')
+except OSError:
+    st.info('Downloading language model for the dependencies...')
+    download('en_core_web_sm')
+    nlp = spacy.load('en_core_web_sm')
+
 # Supabase configuration
 supabase_url = "https://duiomhgeqricsyjmeamr.supabase.co"
 supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1aW9taGdlcXJpY3N5am1lYW1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDczNTMsImV4cCI6MjA1MDUyMzM1M30.VRVw8jQLSQ3IzWhb2NonPHEQ2Gwq-k7WjvHB3WcLe48"
