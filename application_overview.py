@@ -7,8 +7,7 @@ def connect_db():
     try:
         supabase_url = st.secrets["SUPABASE_URL"]
         supabase_key = st.secrets["SUPABASE_KEY"]
-        supabase = create_client(supabase_url, supabase_key)
-        return supabase
+        return create_client(supabase_url, supabase_key)
     except Exception as e:
         st.error(f"Database connection failed: {e}")
         return None
@@ -20,18 +19,24 @@ def fetch_applications(user_email):
         return []
     
     try:
+        # Fetch job listings associated with the user's email
+        job_listings = supabase.from_("job_listings").select("id").eq("parent_email", user_email).execute()
+        job_ids = [job['id'] for job in job_listings.data] if job_listings.data else []
+
+        if not job_ids:
+            return []  # No job listings found for this user
+
         # Fetch job applications where job_id corresponds to listings posted by the user's email
         response = (supabase
-            .from_('job_applications')
+            .from_("job_applications")
             .select('''
                 id,
                 job_id,
                 user_id (full_name),
                 resume_path,
-                status,
-                job_id:job_listings (job_title, job_subject, parent_email)
+                status
             ''')
-            .eq('job_id:job_listings.parent_email', user_email)  # This line needs to be corrected
+            .in_("job_id", job_ids)  # Use the list of job_ids to filter applications
             .execute()
         )
 
@@ -43,9 +48,7 @@ def fetch_applications(user_email):
         for item in response.data:
             applications.append({
                 'application_id': item['id'],
-                'job_title': item['job_id']['job_title'],
-                'job_subject': item['job_id']['job_subject'],
-                'parent_email': item['job_id']['parent_email'],
+                'job_id': item['job_id'],
                 'full_name': item['user_id']['full_name'],
                 'resume_path': item['resume_path'],
                 'status': item.get('status', 'Pending')
@@ -65,7 +68,7 @@ def update_application_status(application_id, status):
     
     try:
         response = (supabase
-            .from_('job_applications')
+            .from_("job_applications")
             .update({
                 'status': status,
                 'updated_at': datetime.now().isoformat()
@@ -97,28 +100,24 @@ def application_overview():
         st.warning("Please log in to view applications.")
         return
 
-    # Get the email from the session state
     user_email = st.session_state.get("email")
     if not user_email:
         st.error("Unable to retrieve your email. Please log in again.")
         return
 
-    # Fetch applications for jobs posted by this user
     applications = fetch_applications(user_email)
 
     if applications:
-        # Prepare data for display
         for app in applications:
-            # Create a container for each application
             with st.container():
                 col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 3])
                 
                 with col1:
                     st.write(f"**Name:** {app['full_name']}")
                 with col2:
-                    st.write(f"**Job Title:** {app['job_title']}")
+                    st.write(f"**Job ID:** {app['job_id']}")
                 with col3:
-                    st.write(f"**Subject:** {app['job_subject']}")
+                    st.write(f"**Status:** {app['status']}")
                 with col4:
                     if app['resume_path']:
                         resume_content = download_resume(app['resume_path'])
@@ -131,7 +130,6 @@ def application_overview():
                                 key=f"download_{app['application_id']}"
                             )
                 with col5:
-                    st.write(f"**Status:** {app['status']}")
                     if app['status'] == 'Pending':
                         col5_1, col5_2 = st.columns(2)
                         with col5_1:

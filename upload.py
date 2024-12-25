@@ -133,7 +133,7 @@ def upload():
                     "educational_background": educational_background,
                     "age_range": age_range,
                     "hourly_rate": hourly_rate,
-                    "rate_negotiable": rate_negotiable,
+                    "rate_negotiable": rate_negotiable,  # This should now be a boolean
                     "job_subject": job_subject,
                     "special_conditions": special_conditions,
                 }
