@@ -314,7 +314,6 @@ def main():
     elif st.session_state.get("page") == "job_list":
         list_jobs()  # Call the correct function
   
-
 if __name__ == "__main__":
     # Initialize session state variables if not already present
     if "logged_in" not in st.session_state:
