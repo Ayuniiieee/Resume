@@ -318,8 +318,10 @@ if __name__ == "__main__":
     if "user_type" not in st.session_state:
         st.session_state["user_type"] = None
     if "page" not in st.session_state:
-        st.session_state["page"] = "home"  
-    if "username" not in st.session_state:  # Add this line
+        st.session_state["page"] = "home"
+    if "username" not in st.session_state:
         st.session_state["username"] = None
+    if "user_id" not in st.session_state:  # Add this line
+        st.session_state["user_id"] = None
 
     main()

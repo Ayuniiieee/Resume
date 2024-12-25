@@ -80,7 +80,11 @@ def main():
     if not supabase:
         st.error("Unable to connect to the database.")
         return
-
+    if not st.session_state.get("logged_in"):
+        st.warning("Please log in to view this page.")
+        st.session_state["page"] = "login"
+        st.rerun()
+        return
     # Check if the user is logged in
     user_id = st.session_state.get("user_id")  # Assuming user ID is stored in session state
     if not user_id:

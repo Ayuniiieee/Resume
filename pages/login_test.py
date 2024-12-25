@@ -120,7 +120,7 @@ def login():
                     "logged_in": True,
                     "email": email,
                     "user_type": user.get('user_type', 'unknown'),
-                    "user_id": user.get('id'),
+                    "user_id": user.get('id'),  # Make sure this is being set
                     "page": "home"
                 })
                 st.rerun()
