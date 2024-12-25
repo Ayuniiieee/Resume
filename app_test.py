@@ -19,6 +19,7 @@ try:
     from applied_jobs import main as applied_jobs
     from about_us import about_us
     from apply import apply 
+    from job_list import job_list
 except ImportError as e:
     st.error(f"Import error: {e}")
     st.stop()
@@ -310,6 +311,8 @@ def main():
         about_us()  # Redirect to about_us.py
     elif st.session_state.get("page") == "apply":
         apply()  # Call the apply function
+    elif st.session_state.get("page") == "job_list":
+        job_list()  # Call the apply function
   
 
 if __name__ == "__main__":
