@@ -19,6 +19,7 @@ def list_jobs():
     
     if supabase:
         try:
+            # Fetch job listings for the logged-in parent
             response = supabase.from_("job_listings").select("*").eq("parent_email", parent_email).execute()
             if response.data:
                 for job in response.data:
@@ -27,6 +28,16 @@ def list_jobs():
                     st.write(f"**Location:** {job['city']}, {job['state']}")
                     st.write(f"**Contact:** {job['preferred_contact']}")
                     st.write(f"**Status:** {job['status']}")
+
+                    # Toggle status button
+                    new_status = "inactive" if job['status'] == "active" else "active"
+                    if st.button(f"Set as {new_status.capitalize()}", key=f"toggle_{job['id']}"):
+                        try:
+                            supabase.from_("job_listings").update({"status": new_status}).eq("id", job['id']).execute()
+                            st.success(f"Job '{job['job_title']}' status updated to {new_status}.")
+                            st.experimental_rerun()  # Reload the page to reflect changes
+                        except Exception as e:
+                            st.error(f"Error updating job status: {e}")
                     st.write("---")
             else:
                 st.info("No job listings found.")

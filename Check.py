@@ -1,7 +1,10 @@
 import nltk
+nltk.download('stopwords')
+nltk.download('punkt')
 import datetime
+from typing import Optional
 import os
-from supabase import create_client
+from supabase import create_client, Client
 import streamlit as st
 import pandas as pd
 import base64, random
@@ -21,37 +24,32 @@ os.environ['PAFY_BACKEND'] = "internal"
 import pafy
 import plotly.express as px
 import re
-import spacy
 
-# Download NLTK data
-nltk.download('stopwords')
-nltk.download('punkt')
-
-# Supabase configuration
-supabase_url = "https://duiomhgeqricsyjmeamr.supabase.co"
-supabase_key = "YOUR_SUPABASE_KEY"  # Replace with your actual key
-supabase = create_client(supabase_url, supabase_key)
-
-# Load SpaCy model once
-nlp = None
-
-def load_spacy_model():
-    global nlp
-    if nlp is None:
-        try:
-            nlp = spacy.load('en_core_web_sm')
-        except OSError:
-            st.warning("Downloading SpaCy model. This may take a moment...")
-            spacy.cli.download('en_core_web_sm')
-            nlp = spacy.load('en_core_web_sm')
-
-def connect_db():
-    """Create and return Supabase client."""
+# Move Supabase configuration to environment variables or Streamlit secrets
+def get_supabase_client() -> Optional[Client]:
+    """Initialize Supabase client with proper error handling"""
     try:
-        return create_client(supabase_url, supabase_key)
+        # Try to get credentials from environment variables first
+        supabase_url = os.getenv('SUPABASE_URL', "https://duiomhgeqricsyjmeamr.supabase.co")
+        supabase_key = os.getenv('SUPABASE_KEY', "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1aW9taGdlcXJpY3N5am1lYW1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDczNTMsImV4cCI6MjA1MDUyMzM1M30.VRVw8jQLSQ3IzWhb2NonPHEQ2Gwq-k7WjvHB3WcLe48")
+        
+        # Initialize Supabase client
+        client = create_client(supabase_url, supabase_key)
+        
+        # Test the connection
+        test_query = client.table('users').select("*").limit(1).execute()
+        if test_query.data is not None:  # If we can query, connection is working
+            return client
+        else:
+            st.error("Could not verify Supabase connection")
+            return None
+            
     except Exception as e:
-        st.error(f"Error connecting to Supabase: {e}")
+        st.error(f"Failed to initialize Supabase client: {str(e)}")
         return None
+
+# Initialize the Supabase client
+supabase = get_supabase_client()
     
 def check():
     """Check if the user is logged in and fetch user details."""
