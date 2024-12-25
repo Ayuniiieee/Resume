@@ -19,27 +19,41 @@ def fetch_applications(user_email):
         return []
     
     try:
-        # Fetch applications with job listings in a single query using inner join
-        response = (supabase
+        # First, get the job IDs for the parent's email
+        jobs_response = (supabase
+            .from_("job_listings")
+            .select("id")
+            .eq("parent_email", user_email)
+            .execute()
+        )
+        
+        if not jobs_response.data:
+            return []
+            
+        job_ids = [job['id'] for job in jobs_response.data]
+        
+        # Then fetch applications for those job IDs
+        applications_response = (supabase
             .from_("job_applications")
             .select('''
                 id,
                 job_id,
-                user_id (full_name),
+                user_id (
+                    full_name
+                ),
                 resume_path,
-                status,
-                job_listings!inner (parent_email)
+                status
             ''')
-            .eq('job_listings.parent_email', user_email)
+            .in_("job_id", job_ids)
             .execute()
         )
 
-        if not response.data:
+        if not applications_response.data:
             return []
 
         # Transform the data to match the expected format
         applications = []
-        for item in response.data:
+        for item in applications_response.data:
             applications.append({
                 'application_id': item['id'],
                 'job_id': item['job_id'],
