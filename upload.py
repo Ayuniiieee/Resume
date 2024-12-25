@@ -103,7 +103,7 @@ def upload():
         # Submit Button
         submitted = st.form_submit_button("Upload Job Listing")
         
-    # Form Submission Logic
+    # Inserting Data into Supabase
     if submitted:
         # Validate Required Fields
         if not job_title or not job_description:
@@ -123,11 +123,11 @@ def upload():
                     "phone_number": phone_number,
                     "city": city,
                     "state": state,
-                    "detailed_address": detailed_address,
-                    "preferred_contact": preferred_contact,
+                    "detailed_addr": detailed_address,  # Ensure this matches your database schema
+                    "preferred_con": preferred_contact,  # Ensure this matches your database schema
                     "job_title": job_title,
-                    "job_description": job_description,
-                    "preferred_start_date": preferred_start_date_str,  # Use the string format here
+                    "job_descript": job_description,  # Ensure this matches your database schema
+                    "preferred_st": preferred_start_date_str,  # Ensure this matches your database schema
                     "job_frequency": job_frequency,
                     "required_skills": required_skills,
                     "educational_background": educational_background,
@@ -137,6 +137,9 @@ def upload():
                     "job_subject": job_subject,
                     "special_conditions": special_conditions,
                 }
+
+                # Debug: Print job_data to check types
+                st.write("Job data being sent:", job_data)
 
                 # Insert the job listing into the database
                 response = supabase.table('job_listings').insert(job_data).execute()
