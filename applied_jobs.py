@@ -3,6 +3,12 @@ import pandas as pd
 from supabase import create_client
 from config import SUPABASE_URL, SUPABASE_KEY
 
+# Initialize session state variables
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+if "user_id" not in st.session_state:
+    st.session_state["user_id"] = None
+
 def connect_db():
     try:
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -13,7 +19,6 @@ def connect_db():
 
 def fetch_all_jobs(supabase, user_id):
     try:
-        # Fetch all job applications for the logged-in user
         response = (supabase
             .from_('job_applications')
             .select('''
@@ -27,14 +32,13 @@ def fetch_all_jobs(supabase, user_id):
                 status,
                 user_id
             ''')
-            .eq('user_id', user_id)  # Only fetch jobs for the current user
+            .eq('user_id', user_id)
             .execute()
         )
 
         if not response.data:
             return []
 
-        # Transform the data
         jobs = []
         for item in response.data:
             job_listing = item.get('job_listings', {})
@@ -56,6 +60,11 @@ def fetch_all_jobs(supabase, user_id):
         return []
 
 def main():
+    # Debug information (you can remove this in production)
+    st.sidebar.write("Debug Info:")
+    st.sidebar.write(f"Logged in: {st.session_state.get('logged_in')}")
+    st.sidebar.write(f"User ID: {st.session_state.get('user_id')}")
+
     st.markdown("""
         <style>
         .title {
@@ -80,19 +89,26 @@ def main():
     if not supabase:
         st.error("Unable to connect to the database.")
         return
-    if not st.session_state.get("logged_in"):
+
+    # Check login status
+    if not st.session_state.logged_in:
         st.warning("Please log in to view this page.")
-        st.session_state["page"] = "login"
-        st.rerun()
-        return
-    # Check if the user is logged in
-    user_id = st.session_state.get("user_id")  # Assuming user ID is stored in session state
-    if not user_id:
-        st.error("Unable to retrieve your user ID. Please log in again.")
+        if "page" in st.session_state:
+            st.session_state.page = "login"
+            st.rerun()
         return
 
-    # Fetch all jobs
-    jobs = fetch_all_jobs(supabase, user_id)
+    # Verify user_id exists
+    if not st.session_state.user_id:
+        st.error("Unable to retrieve your user ID. Please log in again.")
+        if "page" in st.session_state:
+            st.session_state.page = "login"
+            st.session_state.logged_in = False
+            st.rerun()
+        return
+
+    # Fetch and display jobs
+    jobs = fetch_all_jobs(supabase, st.session_state.user_id)
 
     if jobs:
         job_data = []
@@ -147,7 +163,7 @@ def main():
         else:
             st.warning("No jobs match the selected filters.")
             
-        # Add some statistics
+        # Add statistics
         st.markdown("### Quick Statistics")
         col1, col2, col3 = st.columns(3)
         with col1:
