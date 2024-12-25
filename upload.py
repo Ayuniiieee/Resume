@@ -2,6 +2,7 @@ import streamlit as st
 from supabase import create_client
 from datetime import datetime
 from Home_test import connect_db
+from job_list import list_jobs  # Import the list_jobs function
 
 def upload():
     st.title("📤 Job Listing Upload")
@@ -147,8 +148,9 @@ def upload():
                 if hasattr(response, 'data') and response.data:
                     st.success("Job Listing Uploaded Successfully!")
                     st.balloons()
-                    # Clear the form or redirect as needed
-                    st.rerun()  # Change here from experimental_rerun() to st.rerun()
+                    # Redirect to job list page
+                    st.session_state['redirect_to'] = 'job_list'  # Set a session state variable to indicate redirection
+                    st.rerun()
                 else:
                     st.error("Failed to upload job listing. Please try again.")
 
@@ -158,6 +160,14 @@ def upload():
         else:
             st.error("Failed to connect to Supabase.")
 
+def main():
+    # Check if the user is redirected after upload
+    if st.session_state.get('redirect_to') == 'job_list':
+        list_jobs()  # Show the list of jobs
+        del st.session_state['redirect_to']  # Clear the redirect flag
+    else:
+        upload()  # Show the upload form
+
 # Ensure this is only run when the script is directly executed
 if __name__ == "__main__":
-    upload()
+    main()
