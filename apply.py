@@ -1,10 +1,10 @@
 import streamlit as st
-import pymysql
 import sys
 import os
 import base64
 import json
 import datetime
+from supabase import create_client
 
 # Add the path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -41,39 +41,33 @@ def initialize_session():
             st.session_state[key] = value
 
 # Database Connection
-def get_db_connection():
+def connect_db():
     try:
-        connection = pymysql.connect(
-            host='localhost',
-            user='root',
-            password='password123',  # Use the password you set above
-            db='cv',
-            port=3306,
-            cursorclass=pymysql.cursors.DictCursor
-        )
-        return connection
+        supabase_url = st.secrets["SUPABASE_URL"]
+        supabase_key = st.secrets["SUPABASE_KEY"]
+        supabase = create_client(supabase_url, supabase_key)
+        return supabase
     except Exception as e:
         st.error(f"Database connection failed: {e}")
         return None
 
 # Function to handle user login
 def handle_login(email, password):
-    connection = get_db_connection()
-    if not connection:
+    supabase = connect_db()
+    if not supabase:
         return None
 
     try:
-        with connection.cursor() as cursor:
-            query = "SELECT id FROM users WHERE email = %s AND password = %s"
-            cursor.execute(query, (email, password))
-            result = cursor.fetchone()
-            if result:
-                return result[0]
-            else:
-                st.error("Invalid credentials.")
-                return None
-    finally:
-        connection.close()
+        # Check user credentials
+        response = supabase.from_("users").select("id").eq("email", email).eq("password", password).execute()
+        if response.data:
+            return response.data[0]['id']
+        else:
+            st.error("Invalid credentials.")
+            return None
+    except Exception as e:
+        st.error(f"Error during login: {e}")
+        return None
 
 # Sidebar Navigation
 def sidebar_navigation():
@@ -136,56 +130,43 @@ def display_pdf(file_path):
 # Function to submit job application
 def submit_application(user_id):
     availability_json = json.dumps(st.session_state.form_data['availability'])
-
-    connection = get_db_connection()
+    supabase = connect_db()
     
-    if connection:
+    if supabase:
         try:
-            with connection.cursor() as cursor:
-                # Fetch the job_id based on the current selected job
-                job_id_query = """
-                SELECT id FROM job_listings 
-                WHERE job_title = %s AND city = %s AND state = %s
-                """
-                selected_job_title = st.session_state.get('selected_job_title', 'Unknown')
-                selected_job_location = st.session_state.get('selected_job_location', 'Unknown')
-                
-                city = selected_job_location.split(',')[0].strip()
-                state = selected_job_location.split(',')[1].strip() if ',' in selected_job_location else 'Unknown'
+            # Fetch the job_id based on the current selected job
+            selected_job_title = st.session_state.get('selected_job_title', 'Unknown')
+            selected_job_location = st.session_state.get('selected_job_location', 'Unknown')
+            city = selected_job_location.split(',')[0].strip()
+            state = selected_job_location.split(',')[1].strip() if ',' in selected_job_location else 'Unknown'
 
-                # Debugging output
-                print(f"Fetching job ID for Title: {selected_job_title}, City: {city}, State: {state}")
+            # Fetch job_id from job_listings
+            job_result = supabase.from_("job_listings").select("id").eq("job_title", selected_job_title).eq("city", city).eq("state", state).execute()
 
-                cursor.execute(job_id_query, (selected_job_title, city, state))
-                job_result = cursor.fetchone()
-                
-                if not job_result:
-                    st.error("Could not find the selected job. Please try again.")
-                    return
+            if not job_result.data:
+                st.error("Could not find the selected job. Please try again.")
+                return
 
-                job_id = job_result[0]
+            job_id = job_result.data[0]['id']
 
-                # Insert job application
-                sql = """INSERT INTO job_applications 
-                        (user_id, job_id, resume_path, teaching_style, availability, is_confirmed, created_at, status) 
-                        VALUES (%s, %s, %s, %s, %s, %s, NOW(), 'Pending')"""
-                cursor.execute(sql, (
-                    user_id,
-                    job_id,  # Make sure to include job_id here
-                    st.session_state.form_data['resume_path'],
-                    st.session_state.form_data['teaching_style'],
-                    availability_json,
-                    0  # is_confirmed (Pending)
-                ))
-                connection.commit()
-                
-                st.success("Application submitted successfully!")
-                st.session_state["page"] = "applied_jobs"
-                st.rerun()
-        except pymysql.Error as e:
+            # Insert job application
+            sql = """INSERT INTO job_applications 
+                    (user_id, job_id, resume_path, teaching_style, availability, is_confirmed, created_at, status) 
+                    VALUES (%s, %s, %s, %s, %s, %s, NOW(), 'Pending')"""
+            supabase.from_("job_applications").insert({
+                'user_id': user_id,
+                'job_id': job_id,
+                'resume_path': st.session_state.form_data['resume_path'],
+                'teaching_style': st.session_state.form_data['teaching_style'],
+                'availability': availability_json,
+                'is_confirmed': 0  # Pending
+            }).execute()
+
+            st.success("Application submitted successfully!")
+            st.session_state["page"] = "applied_jobs"
+            st.rerun()
+        except Exception as e:
             st.error(f"Error submitting application: {e}")
-        finally:
-            connection.close()
 
 # Apply Page Functionality
 def apply():

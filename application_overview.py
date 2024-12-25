@@ -20,18 +20,18 @@ def fetch_applications(user_email):
         return []
     
     try:
-        # Adjusted query to include necessary joins
+        # Fetch job applications where job_id corresponds to listings posted by the user's email
         response = (supabase
             .from_('job_applications')
             .select('''
                 id,
-                job_id,  -- Only select job_id for the relationship
+                job_id,
                 user_id (full_name),
                 resume_path,
                 status,
-                job_id:job_listings (job_title, job_subject, parent_email)  -- Correct way to reference job_listings
+                job_id:job_listings (job_title, job_subject, parent_email)
             ''')
-            .eq('job_id:job_listings.parent_email', user_email)  # Properly reference the parent_email
+            .eq('job_id:job_listings.parent_email', user_email)  # This line needs to be corrected
             .execute()
         )
 
@@ -43,10 +43,10 @@ def fetch_applications(user_email):
         for item in response.data:
             applications.append({
                 'application_id': item['id'],
-                'job_title': item['job_id']['job_title'],  # Access via 'job_id'
-                'job_subject': item['job_id']['job_subject'],  # Access via 'job_id'
-                'parent_email': item['job_id']['parent_email'],  # Access parent_email
-                'full_name': item['user_id']['full_name'],  # Access via 'user_id'
+                'job_title': item['job_id']['job_title'],
+                'job_subject': item['job_id']['job_subject'],
+                'parent_email': item['job_id']['parent_email'],
+                'full_name': item['user_id']['full_name'],
                 'resume_path': item['resume_path'],
                 'status': item.get('status', 'Pending')
             })
