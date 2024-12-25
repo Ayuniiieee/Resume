@@ -123,11 +123,11 @@ def upload():
                     "phone_number": phone_number,
                     "city": city,
                     "state": state,
-                    "detailed_addr": detailed_address,  # Ensure this matches your database schema
-                    "preferred_con": preferred_contact,  # Ensure this matches your database schema
+                    "detailed_address": detailed_address,  # Ensure this matches your database schema
+                    "preferred_contact": preferred_contact,  # Ensure this matches your database schema
                     "job_title": job_title,
-                    "job_descript": job_description,  # Ensure this matches your database schema
-                    "preferred_st": preferred_start_date_str,  # Ensure this matches your database schema
+                    "job_description": job_description,  # Ensure this matches your database schema
+                    "preferred_start_date": preferred_start_date_str,  # Ensure this matches your database schema
                     "job_frequency": job_frequency,
                     "required_skills": required_skills,
                     "educational_background": educational_background,
