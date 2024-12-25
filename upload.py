@@ -1,7 +1,6 @@
 import streamlit as st
-import pymysql
+from supabase import create_client
 from datetime import datetime
-import os
 from Home_test import connect_db
 
 def upload():
@@ -16,24 +15,23 @@ def upload():
         st.error("Access denied. This page is for parents only.")
         return
     
-    # Fetch parent's details from session state and database
     parent_email = st.session_state.get("email")
-    conn = connect_db()
+    supabase = connect_db()
+    
+    # Fetch parent's details from Supabase
     parent_details = None
     
-    if conn:
+    if supabase:
         try:
-            cursor = conn.cursor(pymysql.cursors.DictCursor)
-            cursor.execute("SELECT * FROM users WHERE email = %s", (parent_email,))
-            parent_details = cursor.fetchone()
+            response = supabase.table('users').select('*').eq('email', parent_email).execute()
+            if response.data:
+                parent_details = response.data[0]
+            else:
+                st.error("Unable to retrieve parent information.")
+                return
         except Exception as e:
             st.error(f"Error fetching parent details: {e}")
-        finally:
-            conn.close()
-    
-    if not parent_details:
-        st.error("Unable to retrieve parent information.")
-        return
+            return
     
     # Job Upload Form
     with st.form("job_upload_form", clear_on_submit=True):
@@ -112,47 +110,44 @@ def upload():
                 st.error("Job Title and Description are required.")
                 return
             
-            # Database Connection and Insertion
-            conn = connect_db()
-            if conn:
+            # Inserting Data into Supabase
+            if supabase:
                 try:
-                    cursor = conn.cursor()
-                    sql = """
-                    INSERT INTO job_listings 
-                    (parent_email, full_name, phone_number, 
-                    city, state, detailed_address, 
-                    preferred_contact, job_title, job_description, 
-                    preferred_start_date, job_frequency, 
-                    required_skills, educational_background, 
-                    age_range, hourly_rate, rate_negotiable, 
-                    job_subject, special_conditions)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """
+                    # Prepare the data to be inserted
+                    job_data = {
+                        "parent_email": email,
+                        "full_name": full_name,
+                        "phone_number": phone_number,
+                        "city": city,
+                        "state": state,
+                        "detailed_address": detailed_address,
+                        "preferred_contact": preferred_contact,
+                        "job_title": job_title,
+                        "job_description": job_description,
+                        "preferred_start_date": preferred_start_date,
+                        "job_frequency": job_frequency,
+                        "required_skills": required_skills,
+                        "educational_background": educational_background,
+                        "age_range": age_range,
+                        "hourly_rate": hourly_rate,
+                        "rate_negotiable": rate_negotiable,
+                        "job_subject": job_subject,
+                        "special_conditions": special_conditions,
+                    }
+
+                    # Insert the job listing into the database
+                    response = supabase.table('job_listings').insert(job_data).execute()
                     
-                    values = (
-                        email, full_name, phone_number, 
-                        city, state, detailed_address, 
-                        preferred_contact, job_title, job_description, 
-                        preferred_start_date, job_frequency, 
-                        required_skills, educational_background, 
-                        age_range, hourly_rate, rate_negotiable, 
-                        job_subject, special_conditions
-                    )
-                    
-                    cursor.execute(sql, values)
-                    conn.commit()
-                    
-                    st.success("Job Listing Uploaded Successfully!")
-                    st.balloons()
-                
+                    if response.status_code == 201:  # Check if the insert was successful
+                        st.success("Job Listing Uploaded Successfully!")
+                        st.balloons()
+                    else:
+                        st.error(f"Error uploading job listing: {response.error}")
+
                 except Exception as e:
                     st.error(f"Error uploading job listing: {e}")
-                
-                finally:
-                    conn.close()
             else:
-                st.error("Failed to connect to database.")
+                st.error("Failed to connect to Supabase.")
 
 # Ensure this is only run when the script is directly executed
 if __name__ == "__main__":

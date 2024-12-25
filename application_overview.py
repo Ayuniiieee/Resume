@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import os
 from datetime import datetime
 from supabase import create_client
 
@@ -26,12 +25,12 @@ def fetch_applications(user_email):
             .from_('job_applications')
             .select('''
                 id,
-                job_listings!inner(
+                job_listings (
                     job_title,
                     job_subject,
                     parent_email
                 ),
-                users!inner(
+                users (
                     full_name
                 ),
                 resume_path,
