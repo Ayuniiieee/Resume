@@ -42,9 +42,9 @@ def fetch_applications(user_email):
         for item in response.data:
             applications.append({
                 'application_id': item['id'],
-                'job_title': item['jobs']['job_title'],  # Access via 'jobs'
-                'job_subject': item['jobs']['job_subject'],  # Access via 'jobs'
-                'full_name': item['users']['full_name'],  # Access via 'users'
+                'job_title': item['job_id']['job_title'],  # Access via 'job_id'
+                'job_subject': item['job_id']['job_subject'],  # Access via 'job_id'
+                'full_name': item['user_id']['full_name'],  # Access via 'user_id'
                 'resume_path': item['resume_path'],
                 'status': item.get('status', 'Pending')
             })
