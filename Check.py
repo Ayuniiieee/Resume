@@ -26,11 +26,29 @@ os.environ['PAFY_BACKEND'] = "internal"
 import pafy
 import plotly.express as px
 import re
-# Initialize spacy
-try:
-    spacy.load('en_core_web_sm')
-except OSError:
-    os.system('python -m spacy download en_core_web_sm')
+
+def initialize_spacy():
+    """Initialize spaCy with proper error handling and installation"""
+    try:
+        # Try to load the model
+        nlp = spacy.load('en_core_web_sm')
+        return nlp
+    except OSError:
+        # If model is not found, install it
+        st.info("Installing required language model... This may take a moment.")
+        try:
+            os.system('python -m pip install --upgrade pip')  # Upgrade pip first
+            os.system('python -m pip install spacy')  # Ensure spacy is installed
+            os.system('python -m spacy download en_core_web_sm')  # Download the model
+            nlp = spacy.load('en_core_web_sm')  # Try loading again
+            return nlp
+        except Exception as e:
+            st.error(f"Error installing spaCy model: {str(e)}")
+            st.info("Please try installing manually with: python -m spacy download en_core_web_sm")
+            return None
+
+# Replace the original spacy initialization with this function call
+nlp = initialize_spacy()
 
 # Move Supabase configuration to environment variables or Streamlit secrets
 def get_supabase_client() -> Optional[Client]:
