@@ -27,65 +27,28 @@ import pafy
 import plotly.express as px
 import re
 
-def initialize_nlp():
-    """Initialize NLP with fallback options"""
+def initialize_spacy():
+    """Initialize spaCy with proper error handling and installation"""
     try:
-        import spacy
-        return spacy.load('en_core_web_sm')
-    except:
-        st.warning("SpaCy model not available. Using basic text processing instead.")
-        return None
-
-class BasicResumeParser:
-    """Fallback resume parser when spaCy is not available"""
-    def __init__(self, file_path):
-        self.file_path = file_path
-    
-    def get_extracted_data(self):
+        # Try to load the model
+        nlp = spacy.load('en_core_web_sm')
+        return nlp
+    except OSError:
+        # If model is not found, install it
+        st.info("Installing required language model... This may take a moment.")
         try:
-            resume_text = pdf_reader(self.file_path)
-            
-            # Basic information extraction
-            email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-            phone_pattern = r'\b(?:\+?\d{1,3}[-.]?)?\(?\d{3}\)?[-.]?\d{3}[-.]?\d{4}\b'
-            
-            # Extract basic information
-            emails = re.findall(email_pattern, resume_text)
-            phones = re.findall(phone_pattern, resume_text)
-            
-            # Basic skills extraction (customize this list based on your needs)
-            skill_patterns = [
-                'python', 'java', 'javascript', 'html', 'css', 'sql', 'react',
-                'android', 'ios', 'swift', 'kotlin', 'flutter', 'django',
-                'machine learning', 'data science', 'artificial intelligence',
-                'ui/ux', 'adobe', 'figma'
-            ]
-            
-            skills = [skill for skill in skill_patterns if skill.lower() in resume_text.lower()]
-            
-            return {
-                'name': 'Name not extracted',  # Would need more sophisticated parsing for name
-                'email': emails[0] if emails else '',
-                'mobile_number': phones[0] if phones else '',
-                'skills': skills,
-                'no_of_pages': len(resume_text.split('\f')) # Basic page count
-            }
+            os.system('python -m pip install --upgrade pip')  # Upgrade pip first
+            os.system('python -m pip install spacy')  # Ensure spacy is installed
+            os.system('python -m spacy download en_core_web_sm')  # Download the model
+            nlp = spacy.load('en_core_web_sm')  # Try loading again
+            return nlp
         except Exception as e:
-            st.error(f"Error parsing resume: {str(e)}")
+            st.error(f"Error installing spaCy model: {str(e)}")
+            st.info("Please try installing manually with: python -m spacy download en_core_web_sm")
             return None
 
-def process_resume(file_path):
-    """Process resume with fallback options"""
-    try:
-        if initialize_nlp():
-            # If spaCy is available, use the original ResumeParser
-            return ResumeParser(file_path).get_extracted_data()
-        else:
-            # Use the fallback parser
-            return BasicResumeParser(file_path).get_extracted_data()
-    except Exception as e:
-        st.error(f"Error processing resume: {str(e)}")
-        return None
+# Replace the original spacy initialization with this function call
+nlp = initialize_spacy()
 
 # Move Supabase configuration to environment variables or Streamlit secrets
 def get_supabase_client() -> Optional[Client]:
@@ -109,8 +72,10 @@ def get_supabase_client() -> Optional[Client]:
     except Exception as e:
         st.error(f"Failed to initialize Supabase client: {str(e)}")
         return None
-    
+
+# Initialize the Supabase client
 supabase = get_supabase_client()
+    
 def check():
     """Check if the user is logged in and fetch user details."""
     if not st.session_state.get("logged_in"):
@@ -348,7 +313,7 @@ def run():
                 # Display the PDF
                 show_pdf(save_path)
 
-                resume_data = process_resume(save_image_path)
+                resume_data = ResumeParser(save_image_path).get_extracted_data()
                 
                 if resume_data:
                     # Rest of your existing code remains the same
