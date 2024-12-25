@@ -123,32 +123,31 @@ def upload():
                     "phone_number": phone_number,
                     "city": city,
                     "state": state,
-                    "detailed_address": detailed_address,  # Ensure this matches your database schema
-                    "preferred_contact": preferred_contact,  # Ensure this matches your database schema
+                    "detailed_address": detailed_address,
+                    "preferred_contact": preferred_contact,
                     "job_title": job_title,
-                    "job_description": job_description,  # Ensure this matches your database schema
-                    "preferred_start_date": preferred_start_date_str,  # Ensure this matches your database schema
+                    "job_description": job_description,
+                    "preferred_start_date": preferred_start_date_str,
                     "job_frequency": job_frequency,
                     "required_skills": required_skills,
                     "educational_background": educational_background,
                     "age_range": age_range,
                     "hourly_rate": hourly_rate,
-                    "rate_negotiable": rate_negotiable,  # This should now be a boolean
+                    "rate_negotiable": rate_negotiable,
                     "job_subject": job_subject,
                     "special_conditions": special_conditions,
+                    "created_at": datetime.now().isoformat(),  # Add creation timestamp
+                    "status": "Active"  # Add default status
                 }
-
-                # Debug: Print job_data to check types
-                st.write("Job data being sent:", job_data)
 
                 # Insert the job listing into the database
                 response = supabase.table('job_listings').insert(job_data).execute()
                 
-                if response.status_code == 201:  # Check if the insert was successful
+                if response.data:  # Check if data was returned (successful insert)
                     st.success("Job Listing Uploaded Successfully!")
                     st.balloons()
                 else:
-                    st.error(f"Error uploading job listing: {response.error}")
+                    st.error("Failed to upload job listing. Please try again.")
 
             except Exception as e:
                 st.error(f"Error uploading job listing: {e}")
