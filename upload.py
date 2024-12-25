@@ -103,51 +103,54 @@ def upload():
         # Submit Button
         submitted = st.form_submit_button("Upload Job Listing")
         
-        # Form Submission Logic
-        if submitted:
-            # Validate Required Fields
-            if not job_title or not job_description:
-                st.error("Job Title and Description are required.")
-                return
-            
-            # Inserting Data into Supabase
-            if supabase:
-                try:
-                    # Prepare the data to be inserted
-                    job_data = {
-                        "parent_email": email,
-                        "full_name": full_name,
-                        "phone_number": phone_number,
-                        "city": city,
-                        "state": state,
-                        "detailed_address": detailed_address,
-                        "preferred_contact": preferred_contact,
-                        "job_title": job_title,
-                        "job_description": job_description,
-                        "preferred_start_date": preferred_start_date,
-                        "job_frequency": job_frequency,
-                        "required_skills": required_skills,
-                        "educational_background": educational_background,
-                        "age_range": age_range,
-                        "hourly_rate": hourly_rate,
-                        "rate_negotiable": rate_negotiable,
-                        "job_subject": job_subject,
-                        "special_conditions": special_conditions,
-                    }
+    # Form Submission Logic
+    if submitted:
+        # Validate Required Fields
+        if not job_title or not job_description:
+            st.error("Job Title and Description are required.")
+            return
 
-                    # Insert the job listing into the database
-                    response = supabase.table('job_listings').insert(job_data).execute()
-                    
-                    if response.status_code == 201:  # Check if the insert was successful
-                        st.success("Job Listing Uploaded Successfully!")
-                        st.balloons()
-                    else:
-                        st.error(f"Error uploading job listing: {response.error}")
+        # Inserting Data into Supabase
+        if supabase:
+            try:
+                # Convert preferred_start_date to string format
+                preferred_start_date_str = preferred_start_date.strftime('%Y-%m-%d') if preferred_start_date else None
+                
+                # Prepare the data to be inserted
+                job_data = {
+                    "parent_email": email,
+                    "full_name": full_name,
+                    "phone_number": phone_number,
+                    "city": city,
+                    "state": state,
+                    "detailed_address": detailed_address,
+                    "preferred_contact": preferred_contact,
+                    "job_title": job_title,
+                    "job_description": job_description,
+                    "preferred_start_date": preferred_start_date_str,  # Use the string format here
+                    "job_frequency": job_frequency,
+                    "required_skills": required_skills,
+                    "educational_background": educational_background,
+                    "age_range": age_range,
+                    "hourly_rate": hourly_rate,
+                    "rate_negotiable": rate_negotiable,
+                    "job_subject": job_subject,
+                    "special_conditions": special_conditions,
+                }
 
-                except Exception as e:
-                    st.error(f"Error uploading job listing: {e}")
-            else:
-                st.error("Failed to connect to Supabase.")
+                # Insert the job listing into the database
+                response = supabase.table('job_listings').insert(job_data).execute()
+                
+                if response.status_code == 201:  # Check if the insert was successful
+                    st.success("Job Listing Uploaded Successfully!")
+                    st.balloons()
+                else:
+                    st.error(f"Error uploading job listing: {response.error}")
+
+            except Exception as e:
+                st.error(f"Error uploading job listing: {e}")
+        else:
+            st.error("Failed to connect to Supabase.")
 
 # Ensure this is only run when the script is directly executed
 if __name__ == "__main__":
