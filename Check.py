@@ -22,6 +22,15 @@ os.environ['PAFY_BACKEND'] = "internal"
 import pafy
 import plotly.express as px
 import re
+import spacy
+from spacy.cli import download
+
+# Attempt to load the SpaCy model
+try:
+    nlp = spacy.load('en_core_web_sm')
+except OSError:
+    download('en_core_web_sm')
+    nlp = spacy.load('en_core_web_sm')
 
 # Supabase configuration
 supabase_url = "https://duiomhgeqricsyjmeamr.supabase.co"
@@ -136,6 +145,7 @@ def pdf_reader(file):
     return text
 
 def show_pdf(file_path):
+    st.markdown(f"[Download PDF]({file_path})")
     with open(file_path, "rb") as f:
         base64_pdf = base64.b64encode(f.read()).decode('utf-8')
     # pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf">'
