@@ -3,12 +3,6 @@ import pandas as pd
 from supabase import create_client
 from config import SUPABASE_URL, SUPABASE_KEY
 
-def validate_user_session():
-    if not st.session_state.get("logged_in") or not st.session_state.get("user_id"):
-        st.error("You must be logged in to access this page. Redirecting to login.")
-        st.session_state["page"] = "login"
-        st.rerun()
-
 def connect_db():
     try:
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)

@@ -20,12 +20,6 @@ try:
 except ImportError as e:
     st.error(f"Import error: {e}")
     st.stop()
-    
-def validate_user_session():
-    if not st.session_state.get("logged_in") or not st.session_state.get("user_id"):
-        st.error("You must be logged in to access this page. Redirecting to login.")
-        st.session_state["page"] = "login"
-        st.rerun()
 
 # Session State Initialization
 def initialize_session():
