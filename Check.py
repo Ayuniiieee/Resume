@@ -178,21 +178,29 @@ def insert_data(user_id, name, email, res_score, timestamp, no_of_pages, reco_fi
             st.error("Failed to insert data")
     except Exception as e:
         st.error(f"Error inserting data: {e}")
+
 def extract_text_from_pdf(pdf_file):
     """Extract text from PDF using pdfminer."""
-    from pdfminer.high_level import extract_text
-    from pdfminer.layout import LAParams
+    resource_manager = PDFResourceManager()
+    fake_file_handle = io.StringIO()
+    converter = TextConverter(resource_manager, fake_file_handle, laparams=LAParams())
+    page_interpreter = PDFPageInterpreter(resource_manager, converter)
     
     try:
         # Create a temporary file to store the uploaded PDF
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
             tmp_file.write(pdf_file.getbuffer())
             tmp_path = tmp_file.name
+            
+        with open(tmp_path, 'rb') as fh:
+            for page in PDFPage.get_pages(fh, caching=True, check_extractable=True):
+                page_interpreter.process_page(page)
+            
+        text = fake_file_handle.getvalue()
         
-        # Extract text from PDF
-        text = extract_text(tmp_path, laparams=LAParams())
-        
-        # Clean up temporary file
+        # Clean up
+        converter.close()
+        fake_file_handle.close()
         os.unlink(tmp_path)
         
         return text
@@ -202,14 +210,12 @@ def extract_text_from_pdf(pdf_file):
 
 def extract_basic_info(text):
     """Extract basic information from resume text."""
-    import re
-    
-    # Initialize dictionary for storing extracted information
     info = {
         'name': '',
         'email': '',
         'phone': '',
-        'skills': []
+        'skills': [],
+        'no_of_pages': 1  # Default to 1 page
     }
     
     # Extract email
@@ -236,6 +242,9 @@ def extract_basic_info(text):
         if re.search(r'\b' + skill + r'\b', text.lower()):
             info['skills'].append(skill)
     
+    # Estimate number of pages based on text length
+    info['no_of_pages'] = max(1, len(text) // 3000)  # Rough estimate: 3000 chars per page
+    
     return info
 
 def run():
@@ -247,17 +256,12 @@ def run():
                     unsafe_allow_html=True)
     pdf_file = st.file_uploader("Choose your Resume", type=["pdf"])
     if pdf_file is not None:
-            with st.spinner('Uploading your Resume...'):
-                time.sleep(4)
+        with st.spinner('Uploading your Resume...'):
+            time.sleep(2)
+            
             resume_text = extract_text_from_pdf(pdf_file)
-            save_image_path = './Uploaded_Resumes/'+pdf_file.name
-            with open(save_image_path, "wb") as f:
-                f.write(pdf_file.getbuffer())
-            show_pdf(save_image_path)
-            resume_data = extract_basic_info(resume_text)
-            if resume_data:
-                ## Get the whole resume data
-                resume_text = pdf_reader(save_image_path)
+            if resume_text:
+                resume_data = extract_basic_info(resume_text)
 
                 st.header("**Resume Analysis**")
                 st.subheader("**Basic Information**")
@@ -266,7 +270,7 @@ def run():
                 if resume_data['phone']:
                     st.text(f"Phone: {resume_data['phone']}")
                 # Extract keywords from the uploaded resume
-                keywords = extract_keywords_from_resume(pdf_reader(save_image_path))
+                keywords = extract_text_from_pdf
                 job_recommendations = recommend_jobs_from_database(keywords, reco_field)
                 
                 # In Check.py, replace the apply button section with this:
