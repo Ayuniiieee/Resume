@@ -30,12 +30,14 @@ supabase_url = "https://duiomhgeqricsyjmeamr.supabase.co"
 supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1aW9taGdlcXJpY3N5am1lYW1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDczNTMsImV4cCI6MjA1MDUyMzM1M30.VRVw8jQLSQ3IzWhb2NonPHEQ2Gwq-k7WjvHB3WcLe48"
 supabase = create_client(supabase_url, supabase_key)
 
-def install_spacy_model():
+def initialize_spacy():
+    """Initialize spaCy with error handling"""
     try:
-        spacy.load('en_core_web_sm')
-    except OSError:
-        print('Downloading spacy model...')
-        subprocess.check_call([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
+        import spacy
+        return spacy.load('en_core_web_sm')
+    except Exception as e:
+        st.error(f"Error loading spaCy model: {e}")
+        return None
 
 def connect_db():
     """Create and return Supabase client."""
@@ -188,7 +190,10 @@ def insert_data(user_id, name, email, res_score, timestamp, no_of_pages, reco_fi
         st.error(f"Error inserting data: {e}")
 
 def run():
-    install_spacy_model()
+    nlp = initialize_spacy()
+    if nlp is None:
+        st.error("Could not initialize required language model. Please try again later.")
+        return
     user_id = check()  # Call check to verify login and get user_id
     if user_id is None:
         return
