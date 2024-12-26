@@ -1,5 +1,6 @@
 streamlit
 pdfminer3
+pdfminer.six>=20221105
 pandas
 pafy
 plotly
