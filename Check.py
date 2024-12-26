@@ -2,13 +2,13 @@ import nltk
 nltk.download('stopwords')
 nltk.download('punkt')
 import os
-from supabase import create_client
+from supabase import create_client # type: ignore
 import streamlit as st
 import pandas as pd
 import base64, random
 import time, datetime
 import sys
-from pyresparser import ResumeParser
+from pyresparser import ResumeParser # type: ignore
 from pdfminer3.layout import LAParams, LTTextBox
 from pdfminer3.pdfpage import PDFPage
 from pdfminer3.pdfinterp import PDFResourceManager
@@ -19,15 +19,15 @@ from streamlit_tags import st_tags
 from PIL import Image
 from Courses import ds_course, web_course, android_course, ios_course, uiux_course, resume_videos, interview_videos
 os.environ['PAFY_BACKEND'] = "internal"
-import pafy
-import plotly.express as px
+import pafy # type: ignore
+import plotly.express as px # type: ignore
 import re
-import tempfile
 
 # Supabase configuration
 supabase_url = "https://duiomhgeqricsyjmeamr.supabase.co"
 supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1aW9taGdlcXJpY3N5am1lYW1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDczNTMsImV4cCI6MjA1MDUyMzM1M30.VRVw8jQLSQ3IzWhb2NonPHEQ2Gwq-k7WjvHB3WcLe48"
 supabase = create_client(supabase_url, supabase_key)
+
 
 def connect_db():
     """Create and return Supabase client."""
@@ -179,74 +179,6 @@ def insert_data(user_id, name, email, res_score, timestamp, no_of_pages, reco_fi
     except Exception as e:
         st.error(f"Error inserting data: {e}")
 
-def extract_text_from_pdf(pdf_file):
-    """Extract text from PDF using pdfminer."""
-    resource_manager = PDFResourceManager()
-    fake_file_handle = io.StringIO()
-    converter = TextConverter(resource_manager, fake_file_handle, laparams=LAParams())
-    page_interpreter = PDFPageInterpreter(resource_manager, converter)
-    
-    try:
-        # Create a temporary file to store the uploaded PDF
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-            tmp_file.write(pdf_file.getbuffer())
-            tmp_path = tmp_file.name
-            
-        with open(tmp_path, 'rb') as fh:
-            for page in PDFPage.get_pages(fh, caching=True, check_extractable=True):
-                page_interpreter.process_page(page)
-            
-        text = fake_file_handle.getvalue()
-        
-        # Clean up
-        converter.close()
-        fake_file_handle.close()
-        os.unlink(tmp_path)
-        
-        return text
-    except Exception as e:
-        st.error(f"Error extracting text from PDF: {e}")
-        return None
-
-def extract_basic_info(text):
-    """Extract basic information from resume text."""
-    info = {
-        'name': '',
-        'email': '',
-        'phone': '',
-        'skills': [],
-        'no_of_pages': 1  # Default to 1 page
-    }
-    
-    # Extract email
-    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-    emails = re.findall(email_pattern, text)
-    if emails:
-        info['email'] = emails[0]
-    
-    # Extract phone numbers
-    phone_pattern = r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b'
-    phones = re.findall(phone_pattern, text)
-    if phones:
-        info['phone'] = phones[0]
-    
-    # Common skills to look for
-    common_skills = [
-        'python', 'java', 'javascript', 'html', 'css', 'react', 'angular',
-        'node', 'sql', 'mongodb', 'aws', 'docker', 'kubernetes', 'git',
-        'machine learning', 'data analysis', 'tensorflow', 'pytorch'
-    ]
-    
-    # Extract skills
-    for skill in common_skills:
-        if re.search(r'\b' + skill + r'\b', text.lower()):
-            info['skills'].append(skill)
-    
-    # Estimate number of pages based on text length
-    info['no_of_pages'] = max(1, len(text) // 3000)  # Rough estimate: 3000 chars per page
-    
-    return info
-
 def run():
     user_id = check()  # Call check to verify login and get user_id
     if user_id is None:
@@ -256,21 +188,29 @@ def run():
                     unsafe_allow_html=True)
     pdf_file = st.file_uploader("Choose your Resume", type=["pdf"])
     if pdf_file is not None:
-        with st.spinner('Uploading your Resume...'):
-            time.sleep(2)
-            
-            resume_text = extract_text_from_pdf(pdf_file)
-            if resume_text:
-                resume_data = extract_basic_info(resume_text)
+            with st.spinner('Uploading your Resume...'):
+                time.sleep(4)
+            save_image_path = './Uploaded_Resumes/'+pdf_file.name
+            with open(save_image_path, "wb") as f:
+                f.write(pdf_file.getbuffer())
+            show_pdf(save_image_path)
+            resume_data = ResumeParser(save_image_path).get_extracted_data()
+            if resume_data:
+                ## Get the whole resume data
+                resume_text = pdf_reader(save_image_path)
 
                 st.header("**Resume Analysis**")
-                st.subheader("**Basic Information**")
-                if resume_data['email']:
-                    st.text(f"Email: {resume_data['email']}")
-                if resume_data['phone']:
-                    st.text(f"Phone: {resume_data['phone']}")
+                st.success("Hello "+ resume_data['name'])
+                st.subheader("**Your Basic info**")
+                try:
+                    st.text('Name: '+resume_data['name'])
+                    st.text('Email: ' + resume_data['email'])
+                    st.text('Contact: ' + resume_data['mobile_number'])
+                    st.text('Resume pages: '+str(resume_data['no_of_pages']))
+                except:
+                    pass
                 # Extract keywords from the uploaded resume
-                keywords = extract_text_from_pdf
+                keywords = extract_keywords_from_resume(pdf_reader(save_image_path))
                 job_recommendations = recommend_jobs_from_database(keywords, reco_field)
                 
                 # In Check.py, replace the apply button section with this:
